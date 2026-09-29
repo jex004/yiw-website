@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: yiw_postgres
+    environment:
+      POSTGRES_USER: serveruser
+      POSTGRES_PASSWORD: securepassword
+      POSTGRES_DB: yiw_hub
+    ports:
+      - "5432:5432"
+    volumes:
+      # This saves your database data to your hard drive so it doesn't wipe when the container stops
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+psycopg2://serveruser:securepassword@db:5432/yiw_hub
+    container_name: yiw_api
+    ports:
+      - "2000:2000"
+    volumes:
+      # This links your local backend folder to the container so you can edit code without rebuilding
+      - ./backend:/app
+    depends_on:
+      - db
+
+  frontend:
+    build: ./frontend
+    environment:
+      API_PROXY_TARGET: http://api:2000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
