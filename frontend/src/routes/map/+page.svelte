@@ -69,11 +69,23 @@
 
 	/** @param {string} url */
 	async function get(url) {
-		const res = await fetch(url, {
-			credentials: url.startsWith('/api/') ? 'include' : 'omit'
-		});
-		if (!res.ok) throw new Error('Could not load the map. Please try again.');
-		return res.json();
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 15000);
+		try {
+			const res = await fetch(url, {
+				signal: controller.signal,
+				credentials: url.startsWith('/api/') ? 'include' : 'omit'
+			});
+			if (!res.ok) throw new Error('Could not load the map. Please try again.');
+			return await res.json();
+		} catch (err) {
+			if (controller.signal.aborted) {
+				throw new Error('The map took too long to load. Please try again.', { cause: err });
+			}
+			throw err;
+		} finally {
+			clearTimeout(timeout);
+		}
 	}
 
 	async function load() {
@@ -81,7 +93,7 @@
 		error = '';
 		try {
 			const [world, data] = await Promise.all([
-				get('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'),
+				get('/maps/countries-110m.json'),
 				get('/api/locations')
 			]);
 			countries = /** @type {any} */ (feature(world, world.objects.countries)).features;
@@ -285,7 +297,7 @@
 					<g transform={`translate(${offsetX}, ${offsetY}) scale(${zoom})`}>
 						<path d={path({ type: 'Sphere' })} fill="#edf0e6" />
 						<g fill="#bac9a4" stroke="#f7f3eb" stroke-width="0.7">
-							{#each countries as shape (shape.id)}<path d={path(shape)} />{/each}
+							{#each countries as shape, index (index)}<path d={path(shape)} />{/each}
 						</g>
 						{#each [...locations].sort((a, b) => b.count - a.count) as location (location.code)}
 							{@const point = projection(location.coords)}
