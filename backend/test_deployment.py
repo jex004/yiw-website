@@ -6,7 +6,8 @@ from pathlib import Path
 from itsdangerous import TimestampSigner
 import os
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
 
 from fastapi.testclient import TestClient
@@ -40,6 +41,83 @@ class DeploymentTests(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.static.cleanup()
+
+    def test_directory_preserves_profiles_defaults_and_bot_filter(self):
+        members = [
+            {
+                "user": {"id": "1", "username": "One", "avatar": "abc"},
+                "joined_at": "2024-01-01T00:00:00Z",
+            },
+            {"user": {"id": "2", "username": "Two"}, "joined_at": None},
+            {"user": {"id": "3", "username": "Three"}, "joined_at": "invalid"},
+            {"user": {"id": "4", "username": "Bot", "bot": True}},
+        ]
+        profiles = [
+            SimpleNamespace(
+                discord_id="1",
+                minecraft_username="player",
+                bio="intro",
+                detailed_bio="details",
+            ),
+            SimpleNamespace(
+                discord_id="3", minecraft_username=None, bio=None, detailed_bio=None
+            ),
+        ]
+        self.db.query.return_value.all.return_value = profiles
+        with patch.object(
+            self.app_module, "fetch_members", AsyncMock(return_value=members)
+        ):
+            result = self.client.get("/api/members").json()["members"]
+        self.assertEqual(
+            result,
+            [
+                {
+                    "id": "1",
+                    "username": "One",
+                    "avatar_url": "https://cdn.discordapp.com/avatars/1/abc.png",
+                    "minecraft_username": "player",
+                    "date_joined": "Jan 2024",
+                    "bio": "intro",
+                    "detailed_bio": "details",
+                    "has_claimed_profile": True,
+                },
+                {
+                    "id": "2",
+                    "username": "Two",
+                    "avatar_url": "https://cdn.discordapp.com/embed/avatars/0.png",
+                    "minecraft_username": "Not set",
+                    "date_joined": "Unknown",
+                    "bio": "",
+                    "detailed_bio": "",
+                    "has_claimed_profile": False,
+                },
+                {
+                    "id": "3",
+                    "username": "Three",
+                    "avatar_url": "https://cdn.discordapp.com/embed/avatars/0.png",
+                    "minecraft_username": "Not set",
+                    "date_joined": "Unknown",
+                    "bio": "",
+                    "detailed_bio": "",
+                    "has_claimed_profile": True,
+                },
+            ],
+        )
+
+    def test_content_errors_keep_existing_responses(self):
+        for path, message in (
+            ("/api/events", "Event details need to be checked by the server owner."),
+            (
+                "/api/locations",
+                "Country counts need to be checked by the server owner.",
+            ),
+        ):
+            with self.subTest(path=path), patch.object(
+                self.app_module, "read_content", side_effect=ValueError
+            ):
+                result = self.client.get(path)
+                self.assertEqual(result.status_code, 503)
+                self.assertEqual(result.json(), {"detail": message})
 
     def test_website_routes_and_missing_api(self):
         for path in ("/", "/members", "/map", "/timeline", "/gallery"):

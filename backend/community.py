@@ -3,6 +3,15 @@
 from collections import Counter
 from datetime import datetime, timezone
 
+DEFAULT_AVATAR_URL = "https://cdn.discordapp.com/embed/avatars/0.png"
+
+
+def avatar_url(user, fallback=DEFAULT_AVATAR_URL):
+    avatar = user.get("avatar")
+    if avatar:
+        return f"https://cdn.discordapp.com/avatars/{user['id']}/{avatar}.png"
+    return fallback
+
 
 def build_server_info(guild, members):
     created_ms = (int(guild["id"]) >> 22) + 1420070400000
@@ -169,18 +178,13 @@ def build_timeline(members, custom_events, today=None):
                 continue
         except (KeyError, TypeError, ValueError, AttributeError):
             continue
-        avatar = user.get("avatar")
         joins.append(
             {
                 "type": "join",
                 "id": user["id"],
                 "date": day,
                 "username": user["username"],
-                "avatar_url": (
-                    f"https://cdn.discordapp.com/avatars/{user['id']}/{avatar}.png"
-                    if avatar
-                    else "https://cdn.discordapp.com/embed/avatars/0.png"
-                ),
+                "avatar_url": avatar_url(user),
             }
         )
     daily = Counter(event["date"] for event in joins)

@@ -5,10 +5,9 @@ import time
 from urllib.parse import urlencode
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
 from pathlib import Path
 from fastapi import FastAPI, Depends, Request, Body, HTTPException
-from fastapi.responses import RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
 from dotenv import load_dotenv
@@ -17,6 +16,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from datetime import datetime
 from community import (
     aggregate_locations,
+    avatar_url,
     build_timeline,
     fetch_members,
     fetch_server_info,
@@ -42,10 +42,13 @@ if DATABASE_URL.startswith(("postgres://", "postgresql://")):
     DATABASE_URL = "postgresql+psycopg2://" + DATABASE_URL.split("://", 1)[1]
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 
+
+def read_content(filename):
+    return json.loads(Path(__file__).with_name(filename).read_text(encoding="utf-8"))
+
+
 # Country reference points, never individual member coordinates.
-COUNTRIES = json.loads(
-    Path(__file__).with_name("countries.json").read_text(encoding="utf-8")
-)
+COUNTRIES = read_content("countries.json")
 COUNTRY_BY_CODE = {country["code"]: country for country in COUNTRIES}
 
 
@@ -192,27 +195,18 @@ async def auth_callback(
 
         discord_id = user_data["id"]
         username = user_data["username"]
-        avatar_hash = user_data.get("avatar")
-
-        if avatar_hash:
-            avatar_url = (
-                f"https://cdn.discordapp.com/avatars/{discord_id}/{avatar_hash}.png"
-            )
-        else:
-            avatar_url = None
+        user_avatar = avatar_url(user_data, fallback=None)
 
         existing_user = db.query(User).filter(User.discord_id == discord_id).first()
 
         if existing_user:
-
             existing_user.username = username
-            existing_user.avatar_url = avatar_url
+            existing_user.avatar_url = user_avatar
             db.commit()
             db.refresh(existing_user)
         else:
-
             new_user = User(
-                discord_id=discord_id, username=username, avatar_url=avatar_url
+                discord_id=discord_id, username=username, avatar_url=user_avatar
             )
             db.add(new_user)
             db.commit()
@@ -227,7 +221,6 @@ async def auth_callback(
 
 @app.get("/api/me")
 def get_current_user(request: Request, db: Session = Depends(get_db)):
-
     discord_id = request.session.get("discord_id")
 
     if not discord_id:
@@ -268,48 +261,28 @@ async def get_member_directory(db: Session = Depends(get_db)):
 
         raw_date = member.get("joined_at", "")
         try:
-
             join_date_obj = datetime.fromisoformat(raw_date.replace("Z", "+00:00"))
             date_joined = join_date_obj.strftime("%b %Y")
         except Exception:
             date_joined = "Unknown"
 
-        avatar_hash = user_data.get("avatar")
-        if avatar_hash:
-            avatar_url = (
-                f"https://cdn.discordapp.com/avatars/{discord_id}/{avatar_hash}.png"
-            )
-        else:
-            avatar_url = "https://cdn.discordapp.com/embed/avatars/0.png"
-
         db_profile = db_user_map.get(discord_id)
-
-        if db_profile:
-            directory.append(
-                {
-                    "id": discord_id,
-                    "username": username,
-                    "avatar_url": avatar_url,
-                    "minecraft_username": db_profile.minecraft_username or "Not set",
-                    "date_joined": date_joined,
-                    "bio": db_profile.bio or "",
-                    "detailed_bio": db_profile.detailed_bio or "",
-                    "has_claimed_profile": True,
-                }
-            )
-        else:
-            directory.append(
-                {
-                    "id": discord_id,
-                    "username": username,
-                    "avatar_url": avatar_url,
-                    "minecraft_username": "Not set",
-                    "date_joined": date_joined,
-                    "bio": "",
-                    "detailed_bio": "",
-                    "has_claimed_profile": False,
-                }
-            )
+        directory.append(
+            {
+                "id": discord_id,
+                "username": username,
+                "avatar_url": avatar_url(user_data),
+                "minecraft_username": (
+                    (db_profile.minecraft_username or "Not set")
+                    if db_profile
+                    else "Not set"
+                ),
+                "date_joined": date_joined,
+                "bio": (db_profile.bio or "") if db_profile else "",
+                "detailed_bio": (db_profile.detailed_bio or "") if db_profile else "",
+                "has_claimed_profile": bool(db_profile),
+            }
+        )
 
     return {"members": directory}
 
@@ -366,13 +339,7 @@ async def get_server_info():
 @app.get("/api/events")
 def get_events(db: Session = Depends(get_db)):
     try:
-        authored = normalize_events(
-            json.loads(
-                Path(__file__)
-                .with_name("timeline_events.json")
-                .read_text(encoding="utf-8")
-            )
-        )
+        authored = normalize_events(read_content("timeline_events.json"))
     except (OSError, ValueError):
         raise HTTPException(
             503, "Event details need to be checked by the server owner."
@@ -408,11 +375,7 @@ def get_countries():
 @app.get("/api/locations")
 async def get_member_locations():
     try:
-        counts = json.loads(
-            Path(__file__)
-            .with_name("member_countries.json")
-            .read_text(encoding="utf-8")
-        )
+        counts = read_content("member_countries.json")
         return aggregate_locations(counts, COUNTRY_BY_CODE)
     except (OSError, ValueError):
         raise HTTPException(

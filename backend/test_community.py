@@ -1,6 +1,6 @@
 import unittest
 
-from community import aggregate_locations, build_timeline, build_server_info
+from community import aggregate_locations, build_timeline, build_server_info, avatar_url
 
 
 def member(id, joined_at, bot=False, avatar=None):
@@ -8,6 +8,18 @@ def member(id, joined_at, bot=False, avatar=None):
         "user": {"id": id, "username": f"member-{id}", "bot": bot, "avatar": avatar},
         "joined_at": joined_at,
     }
+
+
+class AvatarTests(unittest.TestCase):
+    def test_custom_and_context_specific_fallbacks(self):
+        self.assertEqual(
+            avatar_url({"id": "123", "avatar": "abc"}),
+            "https://cdn.discordapp.com/avatars/123/abc.png",
+        )
+        self.assertEqual(
+            avatar_url({"id": "123"}), "https://cdn.discordapp.com/embed/avatars/0.png"
+        )
+        self.assertIsNone(avatar_url({"id": "123"}, fallback=None))
 
 
 class ServerInfoTests(unittest.TestCase):
