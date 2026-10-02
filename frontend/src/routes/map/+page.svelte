@@ -56,8 +56,8 @@
 	}
 	const projection = geoEqualEarth().fitExtent(
 		[
-			[20, 20],
-			[940, 490]
+			[0, 20],
+			[920, 490]
 		],
 		{ type: 'Sphere' }
 	);
@@ -131,6 +131,10 @@
 
 	/** @param {Country} country */
 	function visit(country) {
+		if (selected === country.code) {
+			resetView();
+			return;
+		}
 		selected = country.code;
 		const point = projection(country.coords);
 		if (point) setView(3, 480 - point[0] * 3, 255 - point[1] * 3);
@@ -390,8 +394,7 @@
 			</div>
 		{/if}
 		<p class="note">
-			Country locations only. Some members may not be added yet.<br />Map: Natural Earth /
-			world-atlas.
+			Country locations only.<br />Map: Natural Earth / world-atlas.
 		</p>
 	{/if}
 </main>

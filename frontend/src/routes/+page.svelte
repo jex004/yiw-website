@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
 	import ServerExpressions from '$lib/ServerExpressions.svelte';
+	import GamesWePlay from '$lib/GamesWePlay.svelte';
 	/** @type {{name: string, description: string | null, founded_at: string, owner_name: string | null, member_count: number, icon_url: string | null, emojis?: {id: string, name: string, animated: boolean, image_url: string, still_url: string}[], stickers?: {id: string, name: string, description: string, animated: boolean, image_url: string | null, discord_url: string}[]} | null} */
 	let server = $state(null);
 	let loading = $state(true);
@@ -79,6 +80,7 @@
 			</div>
 		</section>
 	{/if}
+	<GamesWePlay />
 	{#if server && !loading && !error}<ServerExpressions
 			emojis={server.emojis}
 			stickers={server.stickers}

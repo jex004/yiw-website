@@ -1,7 +1,7 @@
 <script>
 	import { onMount, tick } from 'svelte';
 	import MemberJoinChart from '$lib/MemberJoinChart.svelte';
-	/** @typedef {{id: string, username: string, avatar_url: string, date_joined: string, minecraft_username: string, bio: string, detailed_bio?: string, has_claimed_profile: boolean}} Member */
+	/** @typedef {{id: string, username: string, avatar_url: string, date_joined: string, minecraft_username: string, preferred_name?: string, bio: string, detailed_bio?: string}} Member */
 	/** @type {{discord_id: string, username: string} | null} */
 	let currentUser = $state(null);
 	/** @type {Member[]} */
@@ -23,6 +23,17 @@
 		editingMcName = $state(''),
 		editingDetailedBio = $state('');
 	let saveMessage = $state('');
+	let editingPreferredName = $state('');
+	let search = $state('');
+	let filteredMembers = $derived(
+		members.filter((member) =>
+			[
+				member.username,
+				member.preferred_name,
+				member.minecraft_username === 'Not set' ? '' : member.minecraft_username
+			].some((name) => name?.toLowerCase().includes(search.trim().toLowerCase()))
+		)
+	);
 	let ownsProfile = $derived.by(() => !!selected && currentUser?.discord_id === selected.id);
 
 	async function load() {
@@ -56,7 +67,11 @@
 	}
 	/** @param {boolean} closing */
 	async function animateCard(closing) {
-		if (!source || !flipper || window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+		if (
+			!source?.isConnected ||
+			!flipper ||
+			window.matchMedia('(prefers-reduced-motion: reduce)').matches
+		)
 			return;
 		animating = true;
 		const from = source.getBoundingClientRect(),
@@ -93,6 +108,7 @@
 	}
 	function startEditing() {
 		if (!selected || animating) return;
+		editingPreferredName = selected.preferred_name || '';
 		editingBio = selected.bio || '';
 		editingMcName = selected.minecraft_username === 'Not set' ? '' : selected.minecraft_username;
 		editingDetailedBio = selected.detailed_bio || '';
@@ -109,6 +125,7 @@
 				headers: { 'Content-Type': 'application/json' },
 				credentials: 'include',
 				body: JSON.stringify({
+					preferred_name: editingPreferredName.trim(),
 					bio: editingBio,
 					mc_name: editingMcName,
 					detailed_bio: editingDetailedBio
@@ -118,6 +135,7 @@
 				throw new Error('Could not save your profile. Please try again.');
 			const updated = {
 				...selected,
+				preferred_name: editingPreferredName.trim(),
 				bio: editingBio,
 				minecraft_username: editingMcName || 'Not set',
 				detailed_bio: editingDetailedBio
@@ -152,15 +170,26 @@
 	</header>
 	<MemberJoinChart />
 	<div class="roster-label">
-		<span>MEMBER DIRECTORY</span><span>{loading ? 'LOADING' : `${members.length} MEMBERS`}</span>
+		<span>MEMBER DIRECTORY</span><span
+			>{loading ? 'LOADING' : `${filteredMembers.length} / ${members.length} MEMBERS`}</span
+		>
+	</div>
+	<div class="directory-search">
+		<input
+			id="member-search"
+			type="search"
+			bind:value={search}
+			placeholder="⌕ Search for a member"
+		/>
 	</div>
 	{#if loading}<p role="status">Loading members...</p>
 	{:else if error}<p role="alert">{error}</p>
 		<button onclick={load}>Try again</button>
 	{:else if !members.length}<p>No members to show yet.</p>
+	{:else if !filteredMembers.length}<p role="status">No members match your search.</p>
 	{:else}
 		<div class="roster">
-			{#each members as member (member.id)}
+			{#each filteredMembers as member (member.id)}
 				<button
 					class="member-card"
 					class:opened={selected?.id === member.id}
@@ -173,16 +202,19 @@
 							><strong>{member.username}</strong><small>Joined {member.date_joined}</small></span
 						></span
 					>
-					<span class="minecraft"><small>MINECRAFT</small>{member.minecraft_username}</span>
+					<span class="member-names">
+						<span class="member-name"
+							><small>PREFERRED NAME</small>{member.preferred_name || 'Not set'}</span
+						>
+						<span class="member-name"
+							><small>MINECRAFT USERNAME</small>{member.minecraft_username}</span
+						>
+					</span>
 					<span class="bio-preview">{member.bio || 'No bio added yet.'}</span>
 					<span class="card-footer"
-						><span
-							>{currentUser?.discord_id === member.id
-								? 'Your profile'
-								: member.has_claimed_profile
-									? 'Member profile'
-									: 'Profile not claimed'}</span
-						><span>View &rarr;</span></span
+						><span>{currentUser?.discord_id === member.id ? 'Your profile' : ''}</span><span
+							>View &rarr;</span
+						></span
 					>
 				</button>
 			{/each}
@@ -201,7 +233,8 @@
 		selected = null;
 		editing = false;
 		await tick();
-		source?.focus();
+		if (source?.isConnected) source.focus();
+		else document.getElementById('member-search')?.focus();
 	}}
 >
 	{#if selected}
@@ -235,7 +268,15 @@
 							void saveProfile();
 						}}
 					>
-						<label for="mc-name">Minecraft name</label><input
+						<label for="preferred-name">Preferred name</label>
+						<input
+							id="preferred-name"
+							bind:value={editingPreferredName}
+							maxlength="80"
+							disabled={saving}
+							placeholder="What should people call you?"
+						/>
+						<label for="mc-name">Minecraft username</label><input
 							id="mc-name"
 							bind:value={editingMcName}
 							disabled={saving}
@@ -262,7 +303,9 @@
 					</form>
 				{:else}
 					<dl>
-						<dt>Minecraft</dt>
+						<dt>Preferred name</dt>
+						<dd>{selected.preferred_name || 'Not set'}</dd>
+						<dt>Minecraft username</dt>
 						<dd>{selected.minecraft_username}</dd>
 					</dl>
 					{#if selected.bio}<p class="intro">{selected.bio}</p>{/if}
@@ -280,6 +323,28 @@
 </dialog>
 
 <style>
+	.directory-search {
+		display: grid;
+		gap: 8px;
+		margin-top: 20px;
+		font-size: 0.75rem;
+		color: var(--green);
+	}
+	.directory-search input {
+		width: 100%;
+		min-width: 0;
+	}
+	.member-names {
+		border-bottom: 1px solid #c0c8b4;
+		padding-bottom: 16px;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+		gap: 16px;
+		width: 100%;
+	}
+	dd + dt {
+		margin-top: 16px;
+	}
 	.roster-label {
 		display: flex;
 		justify-content: space-between;
@@ -345,11 +410,11 @@
 		font-size: 0.7rem;
 		color: var(--muted);
 	}
-	.minecraft {
+	.member-name {
 		font-size: 0.75rem;
 		overflow-wrap: anywhere;
 	}
-	.minecraft small {
+	.member-name small {
 		display: block;
 		color: var(--green);
 		font-size: 0.6rem;
@@ -371,7 +436,6 @@
 		display: flex;
 		justify-content: space-between;
 		gap: 12px;
-		border-top: 1px solid #c0c8b4;
 		padding-top: 12px;
 		margin-top: auto;
 		font-size: 0.65rem;

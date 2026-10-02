@@ -22,7 +22,6 @@ body {
 	isolation: isolate;
 	min-height: 100vh;
 }
-/* Fixed scenery stays outside the opaque paper so text remains easy to read. */
 body::before {
 	content: '';
 	position: fixed;

@@ -1,5 +1,6 @@
 <script>
 	import { onMount, tick } from 'svelte';
+	import { day, dateFormat, timestamp } from '$lib/dates.js';
 	/** @typedef {{id: string, date: string, title: string, summary: string, description: string, images: {url: string, alt: string}[]}} ServerEvent */
 	/** @type {ServerEvent[]} */
 	let events = $state([]);
@@ -17,15 +18,6 @@
 	let selected = $state(null);
 	/** @type {ServerEvent[]} */
 	let group = $state([]);
-	const day = 86400000;
-	/** @param {string} value */
-	const timestamp = (value) => Date.parse(`${value}T00:00:00Z`);
-	const dateFormat = new Intl.DateTimeFormat('en', {
-		day: 'numeric',
-		month: 'short',
-		year: 'numeric',
-		timeZone: 'UTC'
-	});
 	/** @param {string} value */
 	const dateLabel = (value) => dateFormat.format(timestamp(value));
 	let chronological = $derived([...events].reverse());

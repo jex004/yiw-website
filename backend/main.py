@@ -47,11 +47,6 @@ def read_content(filename):
     return json.loads(Path(__file__).with_name(filename).read_text(encoding="utf-8"))
 
 
-# Country reference points, never individual member coordinates.
-COUNTRIES = read_content("countries.json")
-COUNTRY_BY_CODE = {country["code"]: country for country in COUNTRIES}
-
-
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -62,6 +57,7 @@ class User(Base):
     username = Column(String)
     avatar_url = Column(String)
     minecraft_username = Column(String)
+    preferred_name = Column(String)
     bio = Column(String)
     detailed_bio = Column(String)
 
@@ -79,13 +75,10 @@ Base.metadata.create_all(bind=engine)
 
 # Keep existing profile tables compatible.
 with engine.connect() as conn:
-    conn.execute(
-        text("ALTER TABLE users ADD COLUMN IF NOT EXISTS minecraft_username VARCHAR;")
-    )
-    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS bio VARCHAR;"))
-    conn.execute(
-        text("ALTER TABLE users ADD COLUMN IF NOT EXISTS detailed_bio VARCHAR;")
-    )
+    for column in ("preferred_name", "minecraft_username", "bio", "detailed_bio"):
+        conn.execute(
+            text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column} VARCHAR;")
+        )
     conn.commit()
 
 
@@ -202,15 +195,13 @@ async def auth_callback(
         if existing_user:
             existing_user.username = username
             existing_user.avatar_url = user_avatar
-            db.commit()
-            db.refresh(existing_user)
         else:
             new_user = User(
                 discord_id=discord_id, username=username, avatar_url=user_avatar
             )
             db.add(new_user)
-            db.commit()
-            db.refresh(new_user)
+        db.commit()
+        db.refresh(existing_user if existing_user else new_user)
 
         request.session.clear()
         request.session["discord_id"] = discord_id
@@ -280,6 +271,9 @@ async def get_member_directory(db: Session = Depends(get_db)):
                 "date_joined": date_joined,
                 "bio": (db_profile.bio or "") if db_profile else "",
                 "detailed_bio": (db_profile.detailed_bio or "") if db_profile else "",
+                "preferred_name": (
+                    (db_profile.preferred_name or "") if db_profile else ""
+                ),
                 "has_claimed_profile": bool(db_profile),
             }
         )
@@ -294,6 +288,7 @@ def update_profile(
     bio: str = Body(...),
     mc_name: str = Body(...),
     detailed_bio: str | None = Body(None, max_length=10000),
+    preferred_name: str | None = Body(None, max_length=80),
 ):
     if request.headers.get("origin") != PUBLIC_URL:
         raise HTTPException(403, "Invalid request origin.")
@@ -307,6 +302,8 @@ def update_profile(
 
     if detailed_bio is not None:
         user.detailed_bio = detailed_bio
+    if preferred_name is not None:
+        user.preferred_name = preferred_name.strip()
     user.bio = bio
     user.minecraft_username = mc_name
     db.commit()
@@ -369,14 +366,17 @@ def get_events(db: Session = Depends(get_db)):
 
 @app.get("/api/countries")
 def get_countries():
-    return COUNTRIES
+    return read_content("countries.json")
 
 
 @app.get("/api/locations")
 async def get_member_locations():
     try:
         counts = read_content("member_countries.json")
-        return aggregate_locations(counts, COUNTRY_BY_CODE)
+        countries = {
+            country["code"]: country for country in read_content("countries.json")
+        }
+        return aggregate_locations(counts, countries)
     except (OSError, ValueError):
         raise HTTPException(
             503, "Country counts need to be checked by the server owner."

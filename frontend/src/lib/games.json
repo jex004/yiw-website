@@ -1,0 +1,86 @@
+[
+	{
+		"name": "Minecraft",
+		"category": "PC",
+		"note": "Hypixel, SMP, Custom Maps",
+		"links": []
+	},
+	{
+		"name": "Lethal Company",
+		"category": "PC",
+		"note": "Vanilla, Modded, Wesley's Moons",
+		"links": []
+	},
+	{
+		"name": "Phasmophobia",
+		"category": "PC",
+		"note": "",
+		"links": []
+	},
+	{
+		"name": "Golf With Your Friends",
+		"category": "PC",
+		"note": "",
+		"links": []
+	},
+	{
+		"name": "Peak",
+		"category": "PC",
+		"note": "",
+		"links": []
+	},
+	{
+		"name": "Repo",
+		"category": "PC",
+		"note": "",
+		"links": []
+	},
+	{
+		"name": "JKLM.fun",
+		"category": "Online",
+		"note": "Trivia, Bomb Party",
+		"links": ["https://jklm.fun"]
+	},
+	{
+		"name": "Colonist.io",
+		"category": "Online",
+		"note": "",
+		"links": ["https://colonist.io"]
+	},
+	{
+		"name": "Codenames",
+		"category": "Online",
+		"note": "",
+		"links": []
+	},
+	{
+		"name": "Among Us",
+		"category": "PC, Online",
+		"note": "",
+		"links": []
+	},
+	{
+		"name": "Skribbl.io",
+		"category": "Online",
+		"note": "",
+		"links": ["https://skribbl.io/"]
+	},
+	{
+		"name": "Gartic Phone",
+		"category": "Online",
+		"note": "",
+		"links": ["https://garticphone.com/"]
+	},
+	{
+		"name": "Scattergories",
+		"category": "Online",
+		"note": "",
+		"links": ["https://really.boring.website/"]
+	},
+	{
+		"name": "Archipelago",
+		"category": "Online",
+		"note": "",
+		"links": ["https://archipelago.gg/"]
+	}
+]

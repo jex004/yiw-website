@@ -56,11 +56,16 @@ class DeploymentTests(unittest.TestCase):
             SimpleNamespace(
                 discord_id="1",
                 minecraft_username="player",
+                preferred_name="First",
                 bio="intro",
                 detailed_bio="details",
             ),
             SimpleNamespace(
-                discord_id="3", minecraft_username=None, bio=None, detailed_bio=None
+                discord_id="3",
+                minecraft_username=None,
+                preferred_name=None,
+                bio=None,
+                detailed_bio=None,
             ),
         ]
         self.db.query.return_value.all.return_value = profiles
@@ -76,6 +81,7 @@ class DeploymentTests(unittest.TestCase):
                     "username": "One",
                     "avatar_url": "https://cdn.discordapp.com/avatars/1/abc.png",
                     "minecraft_username": "player",
+                    "preferred_name": "First",
                     "date_joined": "Jan 2024",
                     "bio": "intro",
                     "detailed_bio": "details",
@@ -86,6 +92,7 @@ class DeploymentTests(unittest.TestCase):
                     "username": "Two",
                     "avatar_url": "https://cdn.discordapp.com/embed/avatars/0.png",
                     "minecraft_username": "Not set",
+                    "preferred_name": "",
                     "date_joined": "Unknown",
                     "bio": "",
                     "detailed_bio": "",
@@ -96,6 +103,7 @@ class DeploymentTests(unittest.TestCase):
                     "username": "Three",
                     "avatar_url": "https://cdn.discordapp.com/embed/avatars/0.png",
                     "minecraft_username": "Not set",
+                    "preferred_name": "",
                     "date_joined": "Unknown",
                     "bio": "",
                     "detailed_bio": "",
@@ -133,10 +141,24 @@ class DeploymentTests(unittest.TestCase):
         result = self.client.post(
             "/api/profile/update",
             headers={"Origin": "https://example.test"},
-            json={"bio": "new bio", "mc_name": "name"},
+            json={"bio": "new bio", "mc_name": "name", "preferred_name": "  First  "},
         )
         self.assertEqual(result.json(), {"status": "success"})
         self.assertEqual(profile.bio, "new bio")
+        self.assertEqual(profile.preferred_name, "First")
+        for value in (None, "", "x" * 81):
+            data = {"bio": "new bio", "mc_name": "name"}
+            if value is not None:
+                data["preferred_name"] = value
+            result = self.client.post(
+                "/api/profile/update",
+                headers={"Origin": "https://example.test"},
+                json=data,
+            )
+            self.assertEqual(
+                result.status_code, 422 if value and len(value) > 80 else 200
+            )
+            self.assertEqual(profile.preferred_name, "First" if value is None else "")
 
     def test_public_health_and_anonymous_session(self):
         self.assertEqual(self.client.get("/health").status_code, 200)

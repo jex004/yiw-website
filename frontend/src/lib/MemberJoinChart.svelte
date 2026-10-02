@@ -1,5 +1,6 @@
 <script>
 	import { onMount } from 'svelte';
+	import { day, dateFormat, timestamp } from '$lib/dates.js';
 	import { Line } from 'svelte-chartjs';
 	import {
 		Chart as ChartJS,
@@ -19,14 +20,6 @@
 	let currentMembers = $state(0);
 	let missingDates = $state(0);
 	let hasChart = $state(false);
-	const dateFormat = new Intl.DateTimeFormat('en', {
-		month: 'short',
-		day: 'numeric',
-		year: 'numeric',
-		timeZone: 'UTC'
-	});
-	/** @param {string} date */
-	const timestamp = (date) => Date.parse(`${date}T00:00:00Z`);
 	/** @type {import('chart.js').ChartOptions<'line'>} */
 	const options = {
 		responsive: true,
@@ -75,7 +68,7 @@
 			);
 			hasChart = points.length > 0;
 			// A zero baseline makes the first day's joins visible, including single-day datasets.
-			if (points.length) points.unshift({ x: points[0].x - 86400000, y: 0 });
+			if (points.length) points.unshift({ x: points[0].x - day, y: 0 });
 			chartData = {
 				datasets: [
 					{
