@@ -264,7 +264,7 @@
 		<div>
 			<p class="section-number">04 / Map</p>
 			<h1>Member map</h1>
-			<p>Where people in the server are from.</p>
+			<p>Where in the world? .ೃ࿔ ✈︎ *:･</p>
 		</div>
 	</header>
 	{#if loading}

@@ -161,7 +161,7 @@
 		<div>
 			<p class="section-number">02 / Members</p>
 			<h1>Community roster</h1>
-			<p>The people in the server. Select a card to view their profile.</p>
+			<p>The people in the server. ૮₍ ˶ᵔ ᵕ ᵔ˶ ₎ა</p>
 		</div>
 		{#if !currentUser}<!-- eslint-disable svelte/no-navigation-without-resolve -- Login is a backend endpoint. -->
 			<a class="button-link" href="/login" data-sveltekit-reload>Log in with Discord &rarr;</a

@@ -14,12 +14,39 @@
 	let width = $state(800);
 	let dragging = $state(false);
 	let visibleCount = $state(12);
+	let archiveSearch = $state('');
+	let archiveSort = $state('newest');
+	let archiveEvents = $derived.by(() => {
+		const query = archiveSearch.trim().toLowerCase();
+		return events
+			.filter((event) =>
+				[event.title, event.summary, event.description].some((text) =>
+					text.toLowerCase().includes(query)
+				)
+			)
+			.sort((a, b) => {
+				if (archiveSort === 'oldest')
+					return a.date.localeCompare(b.date) || a.id.localeCompare(b.id);
+				if (archiveSort === 'az')
+					return (
+						a.title.localeCompare(b.title, undefined, { sensitivity: 'base' }) ||
+						a.id.localeCompare(b.id)
+					);
+				if (archiveSort === 'za')
+					return (
+						b.title.localeCompare(a.title, undefined, { sensitivity: 'base' }) ||
+						a.id.localeCompare(b.id)
+					);
+				return b.date.localeCompare(a.date) || b.id.localeCompare(a.id);
+			});
+	});
 	/** @type {HTMLDivElement | undefined} */
 	let viewport = $state();
 	/** @type {HTMLDialogElement} */
 	let dialog;
 	/** @type {ServerEvent | null} */
 	let selected = $state(null);
+	let expanded = $state(false);
 	/** @type {ServerEvent[]} */
 	let group = $state([]);
 	/** @param {string} value */
@@ -84,11 +111,28 @@
 			loading = false;
 		}
 	}
-	/** @param {ServerEvent} event */
-	function openEvent(event) {
+	/** @param {ServerEvent} event @param {boolean} [showDetails] */
+	function openEvent(event, showDetails = false) {
+		expanded = showDetails;
 		selected = event;
 		group = [];
 		if (!dialog.open) dialog.showModal();
+		dialog.scrollTop = 0;
+	}
+	/** @param {HTMLElement} node */
+	function flipDetails(node) {
+		const reducedMotion = node.ownerDocument.defaultView?.matchMedia(
+			'(prefers-reduced-motion: reduce)'
+		).matches;
+		return {
+			duration: reducedMotion ? 0 : 180,
+			css: (/** @type {number} */ t) =>
+				`opacity: ${t}; transform: perspective(1000px) rotateY(${(1 - t) * -75}deg);`
+		};
+	}
+	async function toggleDetails() {
+		expanded = !expanded;
+		await tick();
 		dialog.scrollTop = 0;
 	}
 	/** @param {ServerEvent[]} items */
@@ -190,7 +234,7 @@
 		<div>
 			<p class="section-number">03 / Timeline</p>
 			<h1>Server history</h1>
-			<p>Events, milestones, and other things worth keeping.</p>
+			<p>Core memories ૮꒰ ˶• ༝ •˶꒱ა ♡</p>
 		</div>
 	</header>
 	{#if loading}<p role="status">Loading events...</p>
@@ -282,35 +326,56 @@
 		</section>
 		<div class="feed-heading">
 			<h2>Event archive</h2>
-			<span>Newest first / {events.length} {events.length === 1 ? 'event' : 'events'}</span>
+			<span role="status"
+				>{archiveEvents.length} {archiveEvents.length === 1 ? 'event' : 'events'}</span
+			>
 		</div>
-		{#if events.length}
+		<div class="archive-controls">
+			<label for="archive-search"
+				>Search events
+				<input
+					id="archive-search"
+					type="search"
+					bind:value={archiveSearch}
+					oninput={() => (visibleCount = 12)}
+					placeholder="Search titles and event details"
+				/>
+			</label>
+			<label for="archive-sort"
+				>Sort by
+				<select id="archive-sort" bind:value={archiveSort} onchange={() => (visibleCount = 12)}>
+					<option value="newest">Newest first</option>
+					<option value="oldest">Oldest first</option>
+					<option value="az">Title A?Z</option>
+					<option value="za">Title Z?A</option>
+				</select>
+			</label>
+		</div>
+		{#if archiveEvents.length}
 			<div class="event-feed">
-				{#each events.slice(0, visibleCount) as event (event.id)}
+				{#each archiveEvents.slice(0, visibleCount) as event (event.id)}
 					<article class="event-card">
 						{#if event.images[0]}<button
 								class="cover"
-								onclick={() => openEvent(event)}
+								onclick={() => openEvent(event, true)}
 								aria-label={`Read ${event.title}`}
 								><img src={event.images[0].url} alt={event.images[0].alt} loading="lazy" /></button
 							>{/if}
 						<div class="event-copy">
 							<time datetime={event.date}>{dateLabel(event.date)}</time>
-							<h3><button onclick={() => openEvent(event)}>{event.title}</button></h3>
-							<p>
-								{event.summary ||
-									event.description.slice(0, 220) + (event.description.length > 220 ? '...' : '')}
-							</p>
-							<button class="read-more" onclick={() => openEvent(event)}
-								>Read overview &rarr;</button
+							<h3><button onclick={() => openEvent(event, true)}>{event.title}</button></h3>
+							{#if event.description}<p>{event.description}</p>{/if}
+							<button class="read-more" onclick={() => openEvent(event, true)}
+								>View event &rarr;</button
 							>
 						</div>
 					</article>
 				{/each}
 			</div>
-			{#if events.length > visibleCount}<button onclick={() => (visibleCount += 12)}
+			{#if archiveEvents.length > visibleCount}<button onclick={() => (visibleCount += 12)}
 					>Show more events</button
 				>{/if}
+		{:else if events.length}<p class="archive-empty">No events match your search.</p>
 		{:else}<p class="archive-empty">Event overviews and photos will appear here.</p>{/if}
 	{/if}
 </main>
@@ -330,24 +395,37 @@
 		>
 	</div>
 	{#if selected}
-		<time datetime={selected.date}>{dateLabel(selected.date)}</time>
-		<h2 id="event-title">{selected.title}</h2>
-		{#if selected.summary}<p class="event-summary">{selected.summary}</p>{/if}
-		{#if selected.description}<p class="event-description">{selected.description}</p>{/if}
-		{#if selected.images.length}<div class="event-photos">
-				{#each selected.images as photo (photo)}<figure>
-						<img src={photo.url} alt={photo.alt} />{#if photo.alt}<figcaption>
-								{photo.alt}
-							</figcaption>{/if}
-					</figure>{/each}
-			</div>{/if}
+		<div class="detail-stage">
+			{#key expanded}
+				<div class="detail-face" transition:flipDetails>
+					<time datetime={selected.date}>{dateLabel(selected.date)}</time>
+					<h2 id="event-title">{selected.title}</h2>
+					{#if expanded}
+						{#if selected.description}<p class="event-description">{selected.description}</p>{/if}
+					{:else}
+						{#if selected.summary}<p class="event-summary">{selected.summary}</p>{/if}
+					{/if}
+					{#if selected.images.length}<div class="event-photos">
+							{#each expanded ? selected.images : selected.images.slice(0, 1) as photo (photo)}<figure
+								>
+									<img src={photo.url} alt={photo.alt} />
+								</figure>{/each}
+						</div>{/if}
+				</div>
+			{/key}
+		</div>
+		{#if expanded || selected.description || selected.images.length > 1}
+			<button onclick={toggleDetails}>{expanded ? 'Back to summary' : 'View more'}</button>
+		{/if}
 		<div class="event-pagination">
 			<button
 				disabled={selectedIndex >= timelineEvents.length - 1}
-				onclick={() => openEvent(timelineEvents[selectedIndex + 1])}>&larr; Older event</button
+				onclick={() => openEvent(timelineEvents[selectedIndex + 1], expanded)}
+				>&larr; Older event</button
 			><button
 				disabled={selectedIndex <= 0}
-				onclick={() => openEvent(timelineEvents[selectedIndex - 1])}>Newer event &rarr;</button
+				onclick={() => openEvent(timelineEvents[selectedIndex - 1], expanded)}
+				>Newer event &rarr;</button
 			>
 		</div>
 	{:else}
@@ -526,6 +604,28 @@
 		font-size: 0.7rem;
 		color: var(--muted);
 	}
+	.archive-controls {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 16px;
+		margin-bottom: 24px;
+	}
+	.archive-controls label {
+		display: grid;
+		gap: 8px;
+		flex: 1 1 180px;
+		min-width: 0;
+		font-size: 0.75rem;
+		color: var(--green);
+	}
+	.archive-controls label:first-child {
+		flex: 3 1 240px;
+	}
+	.archive-controls input,
+	.archive-controls select {
+		width: 100%;
+		min-width: 0;
+	}
 	.event-feed {
 		display: grid;
 		gap: 24px;
@@ -600,6 +700,13 @@
 		font-size: clamp(1.5rem, 4vw, 2.2rem);
 		overflow-wrap: anywhere;
 	}
+	.detail-stage {
+		display: grid;
+	}
+	.detail-face {
+		grid-area: 1 / 1;
+		min-width: 0;
+	}
 	.event-summary {
 		font-size: 0.95rem;
 	}
@@ -624,11 +731,7 @@
 		margin: auto;
 		border: 1px solid var(--line);
 	}
-	figcaption {
-		font-size: 0.65rem;
-		color: var(--muted);
-		margin-top: 8px;
-	}
+
 	.event-pagination {
 		border-top: 1px solid var(--line);
 		padding-top: 20px;

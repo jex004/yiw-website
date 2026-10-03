@@ -1,7 +1,7 @@
 [
     {
         "id": "The Italian Dinos",
-        "date": "2020-04-30",
+        "date": "2021-04-30",
         "title": "The Italian Dinos",
         "summary": "We are dinosaurs and we are Italian.",
         "description": "We just wanted to be a bunch of dinosaurs but somehow ended up creating the Italian flag lol.",
@@ -12,7 +12,7 @@
     },
     {
         "id": "Identity Swap",
-        "date": "2020-04-30",
+        "date": "2021-04-30",
         "title": "Identity Swap",
         "summary": "You is me and me is you.",
         "description": "Swapping skins AND identities. \nWe had to \"become each other\" as in adopting each other's playstyles, personalities, and way of talking/acting.",
@@ -22,7 +22,7 @@
     },
     {
         "id": "Hazel Birthday Event",
-        "date": "2020-04-18",
+        "date": "2021-04-18",
         "title": "Hazel Birthday Event",
         "summary": "Hazel's 2021 birthday celebration! 🎉",
         "description": "A housing built especially for Hazel's birthday with inside jokes, custom paintings, and lotsa fun (sorta).",
@@ -34,7 +34,7 @@
     },
     {
         "id": "Us When :]",
-        "date": "2020-02-23",
+        "date": "2021-02-23",
         "title": "Us When :]",
         "summary": ":]",
         "description": ":]",
@@ -53,14 +53,14 @@
         "summary": "Just us running around Murder Mystery in a bunch of cat maid outfits.",
         "description": "Honestly was mainly just a Tash Cat Maid Photoshoot with a bunch of extras. Also Dread's cosplaying a girl.",
         "images": [
-            { "url": "/events/2020/cat-maid-group-photo.png", "alt": "cat maid group photo" },
-            { "url": "/events/2020/100k-cat-maid.png", "alt": "cat maids posing in front of 100k leaderboard" },
-            { "url": "/events/2020/tash-crouching.png", "alt": "tash crouching" },
-            { "url": "/events/2020/zoomed-out-tash-crouching.png", "alt": "zoomed out tash crouching" },
-            { "url": "/events/2020/tash-tomb-crouching.png", "alt": "tash tomb crouching" },
-            { "url": "/events/2020/tash-aquarium-crouching.png", "alt": "tash aquarium crouching" },
-            { "url": "/events/2020/tash-ded.png", "alt": "tash laying on the ground ded" },
-            { "url": "/events/2020/tash-close-up.png", "alt": "tash close up" }
+            { "url": "/events/2021/cat-maid-group-photo.png", "alt": "cat maid group photo" },
+            { "url": "/events/2021/100k-cat-maid.png", "alt": "cat maids posing in front of 100k leaderboard" },
+            { "url": "/events/2021/tash-crouching.png", "alt": "tash crouching" },
+            { "url": "/events/2021/zoomed-out-tash-crouching.png", "alt": "zoomed out tash crouching" },
+            { "url": "/events/2021/tash-tomb-crouching.png", "alt": "tash tomb crouching" },
+            { "url": "/events/2021/tash-aquarium-crouching.png", "alt": "tash aquarium crouching" },
+            { "url": "/events/2021/tash-ded.png", "alt": "tash laying on the ground ded" },
+            { "url": "/events/2021/tash-close-up.png", "alt": "tash close up" }
         ]
     },
     {

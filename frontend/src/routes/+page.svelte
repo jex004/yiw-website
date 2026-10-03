@@ -54,7 +54,7 @@
 	{:else if server}
 		<dl class="server-facts">
 			<div>
-				<dt>Founded</dt>
+				<dt>Created</dt>
 				<dd>{dates.format(new Date(`${server.founded_at}T00:00:00Z`))}</dd>
 				<dd class="fact-note">Discord server created</dd>
 			</div>
