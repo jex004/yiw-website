@@ -1,5 +1,6 @@
 <script>
 	import { onMount, tick } from 'svelte';
+	import { dismissOnBackdrop } from '$lib/dismissOnBackdrop.js';
 	import MemberJoinChart from '$lib/MemberJoinChart.svelte';
 	/** @typedef {{id: string, username: string, avatar_url: string, date_joined: string, minecraft_username: string, preferred_name?: string, bio: string, detailed_bio?: string}} Member */
 	/** @type {{discord_id: string, username: string} | null} */
@@ -223,6 +224,7 @@
 </main>
 
 <dialog
+	use:dismissOnBackdrop={closeProfile}
 	bind:this={dialog}
 	aria-labelledby="profile-title"
 	oncancel={(event) => {

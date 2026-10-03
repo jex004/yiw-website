@@ -25,8 +25,8 @@ def normalize_events(rows):
             if not isinstance(row.get(field, ""), str):
                 raise ValueError(f"{field} must be text")
         images = row.get("images", [])
-        if not isinstance(images, list) or len(images) > 2:
-            raise ValueError("Use up to two images per event")
+        if not isinstance(images, list):
+            raise ValueError("Images must be a list")
         for image in images:
             if not isinstance(image, dict) or not isinstance(image.get("url"), str):
                 raise ValueError("Images need a URL")

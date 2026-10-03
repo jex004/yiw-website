@@ -1,9 +1,13 @@
 <script>
 	import { onMount, tick } from 'svelte';
+	import { dismissOnBackdrop } from '$lib/dismissOnBackdrop.js';
 	import { day, dateFormat, timestamp } from '$lib/dates.js';
+	import { layoutMarkers } from '$lib/timelineLayout.js';
 	/** @typedef {{id: string, date: string, title: string, summary: string, description: string, images: {url: string, alt: string}[]}} ServerEvent */
 	/** @type {ServerEvent[]} */
 	let events = $state([]);
+	/** @type {ServerEvent | null} */
+	let creation = $state(null);
 	let loading = $state(true);
 	let error = $state('');
 	let zoom = $state(1);
@@ -20,10 +24,13 @@
 	let group = $state([]);
 	/** @param {string} value */
 	const dateLabel = (value) => dateFormat.format(timestamp(value));
-	let chronological = $derived([...events].reverse());
-	let first = $derived(events.length ? timestamp(chronological[0].date) : 0);
+	let timelineEvents = $derived(
+		[...events, ...(creation ? [creation] : [])].sort((a, b) => b.date.localeCompare(a.date))
+	);
+	let chronological = $derived([...timelineEvents].reverse());
+	let first = $derived(timelineEvents.length ? timestamp(chronological[0].date) : 0);
 	let last = $derived(
-		events.length ? timestamp(chronological[chronological.length - 1].date) : day
+		timelineEvents.length ? timestamp(chronological[chronological.length - 1].date) : day
 	);
 	let padding = $derived(Math.max((last - first) * 0.08, day * 7));
 	let start = $derived(first - padding);
@@ -37,11 +44,12 @@
 		for (const event of chronological) {
 			const x = position(event.date);
 			const previous = result[result.length - 1];
-			if (previous && x - previous.x < 170) previous.events.push(event);
+			if (previous && previous.events[0].date === event.date) previous.events.push(event);
 			else result.push({ x, events: [event] });
 		}
 		return result;
 	});
+	let layout = $derived(layoutMarkers(markers, trackWidth));
 	let ticks = $derived(
 		Array.from({ length: Math.ceil(trackWidth / 180) + 1 }, (_, i) => {
 			const fraction = i / Math.ceil(trackWidth / 180);
@@ -49,7 +57,7 @@
 		})
 	);
 	let selectedIndex = $derived(
-		selected ? events.findIndex((event) => event.id === selected?.id) : -1
+		selected ? timelineEvents.findIndex((event) => event.id === selected?.id) : -1
 	);
 
 	async function load() {
@@ -60,6 +68,16 @@
 			if (!response.ok) throw new Error('Could not load the events. Please try again.');
 			const data = await response.json();
 			events = data.events;
+			creation = data.server_created_at
+				? {
+						id: '__server_creation__',
+						date: data.server_created_at,
+						title: 'Server created',
+						summary: 'The day the Discord server was created.',
+						description: 'The day the Discord server was created.',
+						images: []
+					}
+				: null;
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Could not load events.';
 		} finally {
@@ -185,19 +203,19 @@
 				<div class="controls" aria-label="Timeline controls">
 					<button
 						aria-label="Zoom out timeline"
-						disabled={!events.length || zoom <= 1}
+						disabled={!timelineEvents.length || zoom <= 1}
 						onclick={() => setZoom(zoom / 1.5)}>&minus;</button
 					>
 					<span>{zoom.toFixed(1)}&times;</span>
 					<button
 						aria-label="Zoom in timeline"
-						disabled={!events.length || zoom >= 16}
+						disabled={!timelineEvents.length || zoom >= 16}
 						onclick={() => setZoom(zoom * 1.5)}>+</button
 					>
-					<button disabled={!events.length} onclick={resetView}>Reset</button>
+					<button disabled={!timelineEvents.length} onclick={resetView}>Reset</button>
 				</div>
 			</div>
-			{#if events.length}
+			{#if timelineEvents.length}
 				<!-- The focusable scroll region supports native arrow-key scrolling plus zoom shortcuts. -->
 				<!-- svelte-ignore a11y_no_noninteractive_tabindex, a11y_no_noninteractive_element_interactions -->
 				<div
@@ -211,7 +229,12 @@
 					aria-label="Event timeline. Scroll or drag horizontally. Plus and minus zoom; Home resets."
 					onkeydown={keyboard}
 				>
-					<div class="timeline-track" style:width={`${trackWidth}px`}>
+					<div
+						class="timeline-track"
+						style:width={`${trackWidth}px`}
+						style:height={`${layout.height}px`}
+						style={`--axis: ${layout.axis}px`}
+					>
 						<div class="axis"></div>
 						{#each ticks as mark (mark)}<div
 								class="tick"
@@ -221,18 +244,26 @@
 								<span>{mark.label}</span>
 							</div>{/each}
 						{#each markers as marker, i (marker)}
+							{@const placement = layout.placed[i]}
+							<span
+								class="connector"
+								aria-hidden="true"
+								style:left={`${marker.x}px`}
+								style:top={`${layout.axis + (placement.below ? 0 : -placement.distance)}px`}
+								style:height={`${placement.distance}px`}
+							></span>
 							<button
 								class="event-marker"
-								class:lower={i % 2 === 1}
 								style:left={`${marker.x}px`}
 								aria-label={marker.events.length === 1
 									? `${marker.events[0].title}, ${dateLabel(marker.events[0].date)}`
-									: `${marker.events.length} nearby events, starting ${dateLabel(marker.events[0].date)}`}
+									: `${marker.events.length} events on ${dateLabel(marker.events[0].date)}`}
 								onclick={() => openMarker(marker.events)}
 							>
 								<span class="pin"></span><span
 									class="marker-label"
-									style:left={marker.x > trackWidth - 160 ? '-126px' : '-6px'}
+									style:left={`${placement.left - marker.x + 14}px`}
+									style:top={`${placement.offset + 14}px`}
 									><time>{dateLabel(marker.events[0].date)}</time>
 									<strong
 										>{marker.events.length === 1
@@ -285,6 +316,7 @@
 </main>
 
 <dialog
+	use:dismissOnBackdrop={() => dialog.close()}
 	bind:this={dialog}
 	aria-labelledby="event-title"
 	onclose={() => {
@@ -311,17 +343,16 @@
 			</div>{/if}
 		<div class="event-pagination">
 			<button
-				disabled={selectedIndex >= events.length - 1}
-				onclick={() => openEvent(events[selectedIndex + 1])}>&larr; Older event</button
-			><button disabled={selectedIndex <= 0} onclick={() => openEvent(events[selectedIndex - 1])}
-				>Newer event &rarr;</button
+				disabled={selectedIndex >= timelineEvents.length - 1}
+				onclick={() => openEvent(timelineEvents[selectedIndex + 1])}>&larr; Older event</button
+			><button
+				disabled={selectedIndex <= 0}
+				onclick={() => openEvent(timelineEvents[selectedIndex - 1])}>Newer event &rarr;</button
 			>
 		</div>
 	{:else}
-		<h2 id="event-title">Events in this period</h2>
-		<p class="group-note">
-			Choose an event below. Zoom in on the timeline to spread out nearby dates.
-		</p>
+		<h2 id="event-title">Events on this date</h2>
+		<p class="group-note">Choose an event below to read more.</p>
 		<div class="group-list">
 			{#each group as event (event.id)}<button onclick={() => openEvent(event)}
 					><time>{dateLabel(event.date)}</time><strong>{event.title}</strong></button
@@ -377,12 +408,12 @@
 	}
 	.timeline-track {
 		position: relative;
-		height: 290px;
+		isolation: isolate;
 		min-width: 100%;
 	}
 	.axis {
 		position: absolute;
-		top: 145px;
+		top: var(--axis);
 		left: 0;
 		right: 0;
 		height: 1px;
@@ -390,13 +421,13 @@
 	}
 	.tick {
 		position: absolute;
-		top: 145px;
-		height: 115px;
+		top: var(--axis);
+		height: calc(100% - var(--axis) - 30px);
 		border-left: 1px solid #a5bac070;
 	}
 	.tick span {
 		position: absolute;
-		top: 118px;
+		top: calc(100% + 4px);
 		left: 4px;
 		white-space: nowrap;
 		font-size: 0.6rem;
@@ -408,7 +439,7 @@
 	}
 	.event-marker {
 		position: absolute;
-		top: 145px;
+		top: var(--axis);
 		width: 28px;
 		height: 28px;
 		margin-left: -14px;
@@ -433,16 +464,20 @@
 	.marker-label {
 		position: absolute;
 		width: 150px;
-		bottom: 34px;
-		left: -6px;
+		height: 76px;
+		box-sizing: border-box;
+		z-index: 1;
 		text-align: left;
 		border-left: 2px solid var(--green);
 		padding: 8px 10px;
 		background: var(--paper);
 	}
-	.lower .marker-label {
-		top: 34px;
-		bottom: auto;
+	.connector {
+		position: absolute;
+		width: 1px;
+		background: var(--green);
+		pointer-events: none;
+		z-index: -1;
 	}
 	.marker-label strong {
 		display: -webkit-box;
@@ -451,6 +486,8 @@
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 		font-size: 0.75rem;
+		line-height: 1.4;
+		overflow-wrap: anywhere;
 		margin-top: 6px;
 		font-weight: normal;
 	}

@@ -7,38 +7,38 @@
 	},
 	{
 		"name": "Lethal Company",
-		"category": "PC",
+		"category": "PC, Steam",
 		"note": "Vanilla, Modded, Wesley's Moons",
 		"links": []
 	},
 	{
 		"name": "Phasmophobia",
-		"category": "PC",
+		"category": "PC, Steam",
 		"note": "",
 		"links": []
 	},
 	{
 		"name": "Golf With Your Friends",
-		"category": "PC",
+		"category": "PC, Steam",
 		"note": "",
 		"links": []
 	},
 	{
 		"name": "Peak",
-		"category": "PC",
+		"category": "PC, Steam",
 		"note": "",
 		"links": []
 	},
 	{
 		"name": "Repo",
-		"category": "PC",
+		"category": "PC, Steam", 
 		"note": "",
 		"links": []
 	},
 	{
 		"name": "JKLM.fun",
 		"category": "Online",
-		"note": "Trivia, Bomb Party",
+		"note": "Pop Quiz, Bomb Party",
 		"links": ["https://jklm.fun"]
 	},
 	{
@@ -51,24 +51,24 @@
 		"name": "Codenames",
 		"category": "Online",
 		"note": "",
-		"links": []
+		"links": ["https://codenames.game/"]
 	},
 	{
 		"name": "Among Us",
-		"category": "PC, Online",
+		"category": "PC, Mobile",
 		"note": "",
 		"links": []
 	},
 	{
 		"name": "Skribbl.io",
 		"category": "Online",
-		"note": "",
+		"note": "Custom Words",
 		"links": ["https://skribbl.io/"]
 	},
 	{
 		"name": "Gartic Phone",
 		"category": "Online",
-		"note": "",
+		"note": "Normal, Exquisite Corpse, Knock-Off",
 		"links": ["https://garticphone.com/"]
 	},
 	{
@@ -82,5 +82,11 @@
 		"category": "Online",
 		"note": "",
 		"links": ["https://archipelago.gg/"]
+	},
+	{
+		"name": "Hunger Games Simulator",
+		"category": "Online",
+		"note": "",
+		"links": ["https://brantsteele.net/hungergames/disclaimer.php"]
 	}
 ]

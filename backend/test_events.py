@@ -29,12 +29,22 @@ class EventsTests(unittest.TestCase):
             [dict(valid, date="2024-02-30")],
             [valid, valid],
             [dict(valid, images=[{"url": "javascript:alert(1)"}])],
-            [dict(valid, images=[{"url": "/events/photo.jpg"}] * 3)],
+            [dict(valid, images={"url": "/events/photo.jpg"})],
             [dict(valid, summary=123)],
             [dict(valid, title="")],
         ):
             with self.subTest(rows=rows), self.assertRaises(ValueError):
                 normalize_events(rows)
+
+    def test_more_than_two_images_are_preserved(self):
+        images = [{"url": f"/events/photo-{index}.jpg"} for index in range(5)]
+        result = normalize_events(
+            [{"id": "photos", "date": "2024-01-01", "title": "Photos", "images": images}]
+        )
+        self.assertEqual(
+            [image["url"] for image in result[0]["images"]],
+            [image["url"] for image in images],
+        )
 
     def test_empty(self):
         self.assertEqual(normalize_events([]), [])

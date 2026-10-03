@@ -112,6 +112,15 @@ class DeploymentTests(unittest.TestCase):
             ],
         )
 
+    def test_server_creation_is_separate_from_archive(self):
+        self.db.query.return_value.all.return_value = []
+        with patch.object(self.app_module, "YIW_SERVER_ID", "0"), patch.object(
+            self.app_module, "read_content", return_value=[]
+        ):
+            result = self.client.get("/api/events").json()
+        self.assertEqual(result["server_created_at"], "2015-01-01")
+        self.assertEqual(result["events"], [])
+
     def test_content_errors_keep_existing_responses(self):
         for path, message in (
             ("/api/events", "Event details need to be checked by the server owner."),

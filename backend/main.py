@@ -13,7 +13,7 @@ import httpx
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text, Column, String, Date
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
-from datetime import datetime
+from datetime import datetime, timezone
 from community import (
     aggregate_locations,
     avatar_url,
@@ -355,7 +355,13 @@ def get_events(db: Session = Depends(get_db)):
         if event.event_date
     }
     merged.update({event["id"]: event for event in authored})
+    created_at = None
+    if YIW_SERVER_ID and YIW_SERVER_ID.isdecimal():
+        created_at = datetime.fromtimestamp(
+            ((int(YIW_SERVER_ID) >> 22) + 1420070400000) / 1000, timezone.utc
+        ).date().isoformat()
     return {
+        "server_created_at": created_at,
         "events": sorted(
             merged.values(),
             key=lambda event: (event["date"], event["id"]),

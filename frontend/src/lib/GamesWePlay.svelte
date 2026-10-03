@@ -61,7 +61,10 @@
 										rel="noopener noreferrer"
 										aria-label={`${link.label || 'Visit website'} for ${game.name} (opens in a new tab)`}
 									>
-										{link.label || 'Visit website'} <span aria-hidden="true">&#8599;</span>
+										<span
+											>{link.label || 'Visit website'}&nbsp;
+											<span aria-hidden="true">&#8599;</span></span
+										>
 									</a>
 								{/each}
 							</div>
@@ -105,6 +108,7 @@
 	.game-list {
 		display: grid;
 		grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+		grid-auto-rows: 1fr;
 		gap: 20px;
 		padding: 0;
 		margin: 16px 0 0;
@@ -132,7 +136,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		height: 116px;
+		height: 80px;
+		flex-shrink: 0;
 		border-bottom: 1px solid var(--accent);
 		background-color: var(--tint);
 		background-image:
@@ -161,7 +166,7 @@
 		flex-direction: column;
 		align-items: flex-start;
 		flex: 1;
-		padding: 18px;
+		padding: 12px;
 	}
 	.category {
 		color: var(--accent);
@@ -172,39 +177,37 @@
 		text-transform: uppercase;
 	}
 	h3 {
-		margin: 14px 0 8px;
-		font-size: 1.2rem;
+		margin: 10px 0 6px;
+		font-size: 1.05rem;
 		line-height: 1.3;
 	}
 	p {
 		font-size: 0.75rem;
 		color: var(--muted);
 		white-space: pre-wrap;
-		margin: 0 0 12px;
+		margin: 0 0 6px;
 	}
 	.links {
 		display: flex;
+		justify-content: flex-end;
 		flex-wrap: wrap;
 		gap: 8px;
 		margin-top: auto;
-		padding-top: 12px;
+		padding-top: 4px;
 		width: 100%;
 	}
 	a {
 		display: inline-flex;
 		align-items: center;
-		justify-content: space-between;
-		gap: 16px;
-		min-height: 44px;
-		padding: 8px 12px;
-		border: 1px solid var(--accent);
-		background: var(--tint);
+		min-height: 32px;
+		padding: 4px 0;
 		color: var(--accent);
 		text-decoration: none;
-		font-size: 0.75rem;
+		font-size: 0.65rem;
 	}
 	a:hover {
-		background: var(--paper);
+		text-decoration: underline;
+		text-decoration-skip-ink: none;
 	}
 	.empty {
 		margin-top: 16px;
