@@ -288,10 +288,10 @@ async def get_member_directory(db: Session = Depends(get_db)):
 def update_profile(
     request: Request,
     db: Session = Depends(get_db),
-    bio: str = Body(...),
-    mc_name: str = Body(..., max_length=20),
-    detailed_bio: str | None = Body(None, max_length=10000),
-    preferred_name: str | None = Body(None, max_length=20),
+    bio: str = Body(..., max_length=64),
+    mc_name: str = Body(..., max_length=16),
+    detailed_bio: str | None = Body(None, max_length=500),
+    preferred_name: str | None = Body(None, max_length=16),
 ):
     if request.headers.get("origin") != PUBLIC_URL:
         raise HTTPException(403, "Invalid request origin.")

@@ -274,25 +274,27 @@
 						<input
 							id="preferred-name"
 							bind:value={editingPreferredName}
-							maxlength="20"
+							maxlength="16"
 							disabled={saving}
 							placeholder="What should people call you?"
 						/>
 						<label for="mc-name">Minecraft username</label><input
 							id="mc-name"
 							bind:value={editingMcName}
-							maxlength="20"
+							maxlength="16"
 							disabled={saving}
 						/>
 						<label for="bio"
-							>Short bio <small>Up to two lines shown on your member card</small></label
-						><textarea id="bio" bind:value={editingBio} rows="3" disabled={saving}></textarea>
+							>Short bio <small>64 characters · Up to two lines shown on your member card</small
+							></label
+						><textarea id="bio" bind:value={editingBio} maxlength="64" rows="3" disabled={saving}
+						></textarea>
 						<label for="detailed-bio">About you <small>Shown in your full profile</small></label
 						><textarea
 							id="detailed-bio"
 							bind:value={editingDetailedBio}
 							rows="8"
-							maxlength="10000"
+							maxlength="500"
 							disabled={saving}></textarea>
 						<div class="edit-actions">
 							<button disabled={saving}>{saving ? 'Saving...' : 'Save profile'}</button><button

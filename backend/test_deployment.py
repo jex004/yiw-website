@@ -155,7 +155,7 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(result.json(), {"status": "success"})
         self.assertEqual(profile.bio, "new bio")
         self.assertEqual(profile.preferred_name, "First")
-        for value in (None, "", "x" * 21):
+        for value in (None, "", "x" * 17):
             data = {"bio": "new bio", "mc_name": "name"}
             if value is not None:
                 data["preferred_name"] = value
@@ -165,12 +165,17 @@ class DeploymentTests(unittest.TestCase):
                 json=data,
             )
             self.assertEqual(
-                result.status_code, 422 if value and len(value) > 20 else 200
+                result.status_code, 422 if value and len(value) > 16 else 200
             )
             self.assertEqual(profile.preferred_name, "First" if value is None else "")
 
-        for field in ("preferred_name", "mc_name"):
-            for length in (20, 21):
+        for field, limit in (
+            ("preferred_name", 16),
+            ("mc_name", 16),
+            ("bio", 64),
+            ("detailed_bio", 500),
+        ):
+            for length in (limit, limit + 1):
                 with self.subTest(field=field, length=length):
                     data = {"bio": "new bio", "mc_name": "name", field: "x" * length}
                     result = self.client.post(
@@ -178,7 +183,7 @@ class DeploymentTests(unittest.TestCase):
                         headers={"Origin": "https://example.test"},
                         json=data,
                     )
-                    self.assertEqual(result.status_code, 200 if length == 20 else 422)
+                    self.assertEqual(result.status_code, 200 if length == limit else 422)
 
     def test_public_health_and_anonymous_session(self):
         self.assertEqual(self.client.get("/health").status_code, 200)
