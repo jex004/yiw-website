@@ -20,8 +20,12 @@
 	let currentMembers = $state(0);
 	let missingDates = $state(0);
 	let hasChart = $state(false);
+	/** @type {number | undefined} */
+	let startDate = $state();
+	/** @type {number | undefined} */
+	let endDate = $state();
 	/** @type {import('chart.js').ChartOptions<'line'>} */
-	const options = {
+	const options = $derived({
 		responsive: true,
 		maintainAspectRatio: false,
 		interaction: { intersect: false, mode: 'nearest' },
@@ -38,6 +42,8 @@
 		scales: {
 			x: {
 				type: 'linear',
+				min: startDate,
+				max: endDate,
 				title: { display: true, text: 'Join date (UTC)' },
 				ticks: { maxTicksLimit: 7, callback: (value) => dateFormat.format(Number(value)) },
 				grid: { display: false }
@@ -48,7 +54,7 @@
 				ticks: { precision: 0 }
 			}
 		}
-	};
+	});
 
 	async function load() {
 		loading = true;
@@ -67,8 +73,14 @@
 				})
 			);
 			hasChart = points.length > 0;
-			// A zero baseline makes the first day's joins visible, including single-day datasets.
-			if (points.length) points.unshift({ x: points[0].x - day, y: 0 });
+			endDate = points.at(-1)?.x;
+			if (points.length) {
+				const createdAt = timestamp(data.server_created_at);
+				startDate = Number.isFinite(createdAt)
+					? Math.min(createdAt, points[0].x) - day
+					: points[0].x - day;
+				points.unshift({ x: startDate, y: 0 });
+			}
 			chartData = {
 				datasets: [
 					{

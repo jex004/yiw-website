@@ -39,7 +39,14 @@ class EventsTests(unittest.TestCase):
     def test_more_than_two_images_are_preserved(self):
         images = [{"url": f"/events/photo-{index}.jpg"} for index in range(5)]
         result = normalize_events(
-            [{"id": "photos", "date": "2024-01-01", "title": "Photos", "images": images}]
+            [
+                {
+                    "id": "photos",
+                    "date": "2024-01-01",
+                    "title": "Photos",
+                    "images": images,
+                }
+            ]
         )
         self.assertEqual(
             [image["url"] for image in result[0]["images"]],

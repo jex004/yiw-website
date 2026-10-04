@@ -13,8 +13,12 @@ def avatar_url(user, fallback=DEFAULT_AVATAR_URL):
     return fallback
 
 
+def server_created_date(guild_id):
+    created_ms = (int(guild_id) >> 22) + 1420070400000
+    return datetime.fromtimestamp(created_ms / 1000, timezone.utc).date().isoformat()
+
+
 def build_server_info(guild, members):
-    created_ms = (int(guild["id"]) >> 22) + 1420070400000
     owner = next(
         (member for member in members if member["user"]["id"] == guild["owner_id"]),
         None,
@@ -61,9 +65,7 @@ def build_server_info(guild, members):
     return {
         "name": guild["name"],
         "description": guild.get("description"),
-        "founded_at": datetime.fromtimestamp(created_ms / 1000, timezone.utc)
-        .date()
-        .isoformat(),
+        "founded_at": server_created_date(guild["id"]),
         "owner_name": owner_name,
         "member_count": sum(not member["user"].get("bot", False) for member in members),
         "icon_url": (

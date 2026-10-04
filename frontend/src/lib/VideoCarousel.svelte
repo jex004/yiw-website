@@ -1,6 +1,6 @@
 <script>
 	import { onDestroy } from 'svelte';
-	/** @type {{videos: {id: string, title: string, creator: string, publishedAt: string, thumbnail?: string}[]}} */
+	/** @type {{videos: import('$lib/videos.js').Video[]}} */
 	let { videos } = $props();
 	let selected = $state(0);
 	let rotation = $state(0);
@@ -48,7 +48,7 @@
 			<a
 				class="video-slide"
 				class:front={index === selected}
-				href={`https://www.youtube.com/watch?v=${video.id}`}
+				href={video.url}
 				target="_blank"
 				rel="noopener noreferrer"
 				aria-label={index === selected
@@ -67,7 +67,7 @@
 			>
 				{#if !failed.includes(video.id)}
 					<img
-						src={video.thumbnail || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+						src={video.thumbnail}
 						alt={video.title}
 						onerror={() => (failed = [...failed, video.id])}
 						draggable="false"
@@ -169,8 +169,7 @@
 		text-align: center;
 	}
 	.current span,
-	.current p,
-	.hint {
+	.current p {
 		font-size: 0.65rem;
 		color: var(--muted);
 	}
@@ -181,10 +180,5 @@
 	}
 	.current p {
 		margin: 0 0 16px;
-	}
-	.hint {
-		text-align: center;
-		padding: 12px 18px;
-		margin: 0;
 	}
 </style>

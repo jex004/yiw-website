@@ -211,7 +211,7 @@
 							><small>MINECRAFT USERNAME</small>{member.minecraft_username}</span
 						>
 					</span>
-					<span class="bio-preview">{member.bio || 'No bio added yet.'}</span>
+					<span class="bio-preview">{member.bio || 'No short bio added yet.'}</span>
 					<span class="card-footer"
 						><span>{currentUser?.discord_id === member.id ? 'Your profile' : ''}</span><span
 							>View &rarr;</span
@@ -274,20 +274,19 @@
 						<input
 							id="preferred-name"
 							bind:value={editingPreferredName}
-							maxlength="80"
+							maxlength="20"
 							disabled={saving}
 							placeholder="What should people call you?"
 						/>
 						<label for="mc-name">Minecraft username</label><input
 							id="mc-name"
 							bind:value={editingMcName}
+							maxlength="20"
 							disabled={saving}
 						/>
-						<label for="bio">Short bio <small>Shown on your member card</small></label><textarea
-							id="bio"
-							bind:value={editingBio}
-							rows="3"
-							disabled={saving}></textarea>
+						<label for="bio"
+							>Short bio <small>Up to two lines shown on your member card</small></label
+						><textarea id="bio" bind:value={editingBio} rows="3" disabled={saving}></textarea>
 						<label for="detailed-bio">About you <small>Shown in your full profile</small></label
 						><textarea
 							id="detailed-bio"
@@ -310,10 +309,15 @@
 						<dt>Minecraft username</dt>
 						<dd>{selected.minecraft_username}</dd>
 					</dl>
-					{#if selected.bio}<p class="intro">{selected.bio}</p>{/if}
+					<h3>Short bio</h3>
+					<p class="intro">
+						{selected.bio?.trim() ? selected.bio : 'This member has not added a bio yet.'}
+					</p>
 					<h3>About</h3>
 					<p class="full-bio">
-						{selected.detailed_bio || selected.bio || 'This member has not added a bio yet.'}
+						{selected.detailed_bio?.trim()
+							? selected.detailed_bio
+							: `Unfortunately, who ${selected.username} is remains a mystery.`}
 					</p>
 					{#if ownsProfile}<button disabled={animating} onclick={startEditing}>Edit profile</button
 						>{/if}
@@ -424,12 +428,14 @@
 	}
 	.bio-preview {
 		display: -webkit-box;
-		-webkit-line-clamp: 3;
-		line-clamp: 3;
+		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 		font-size: 0.8rem;
 		line-height: 1.6;
+		height: 3.2em;
+		flex-shrink: 0;
 		overflow-wrap: anywhere;
 		white-space: pre-wrap;
 		margin: 16px 0 20px;

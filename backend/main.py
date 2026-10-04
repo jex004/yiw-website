@@ -1,25 +1,28 @@
-import os
 import json
+import os
 import secrets
 import time
-from urllib.parse import urlencode
-from starlette.middleware.sessions import SessionMiddleware
-from fastapi.staticfiles import StaticFiles
+from datetime import datetime
 from pathlib import Path
-from fastapi import FastAPI, Depends, Request, Body, HTTPException
-from fastapi.responses import FileResponse, RedirectResponse
-from fastapi.middleware.cors import CORSMiddleware
+from urllib.parse import urlencode
+
 import httpx
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, text, Column, String, Date
-from sqlalchemy.orm import declarative_base, sessionmaker, Session
-from datetime import datetime, timezone
+from fastapi import Body, Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy import Column, Date, String, create_engine, text
+from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from starlette.middleware.sessions import SessionMiddleware
+
 from community import (
     aggregate_locations,
     avatar_url,
     build_timeline,
     fetch_members,
     fetch_server_info,
+    server_created_date,
 )
 from events import normalize_events
 
@@ -286,9 +289,9 @@ def update_profile(
     request: Request,
     db: Session = Depends(get_db),
     bio: str = Body(...),
-    mc_name: str = Body(...),
+    mc_name: str = Body(..., max_length=20),
     detailed_bio: str | None = Body(None, max_length=10000),
-    preferred_name: str | None = Body(None, max_length=80),
+    preferred_name: str | None = Body(None, max_length=20),
 ):
     if request.headers.get("origin") != PUBLIC_URL:
         raise HTTPException(403, "Invalid request origin.")
@@ -325,7 +328,14 @@ async def get_timeline(db: Session = Depends(get_db)):
         for event in db.query(TimelineEvent).all()
         if event.event_date
     ]
-    return build_timeline(members, events)
+    return {
+        **build_timeline(members, events),
+        "server_created_at": (
+            server_created_date(YIW_SERVER_ID)
+            if YIW_SERVER_ID and YIW_SERVER_ID.isdecimal()
+            else None
+        ),
+    }
 
 
 @app.get("/api/server")
@@ -357,16 +367,14 @@ def get_events(db: Session = Depends(get_db)):
     merged.update({event["id"]: event for event in authored})
     created_at = None
     if YIW_SERVER_ID and YIW_SERVER_ID.isdecimal():
-        created_at = datetime.fromtimestamp(
-            ((int(YIW_SERVER_ID) >> 22) + 1420070400000) / 1000, timezone.utc
-        ).date().isoformat()
+        created_at = server_created_date(YIW_SERVER_ID)
     return {
         "server_created_at": created_at,
         "events": sorted(
             merged.values(),
             key=lambda event: (event["date"], event["id"]),
             reverse=True,
-        )
+        ),
     }
 
 

@@ -1,9 +1,9 @@
 <script>
 	import VideoLibrary from '$lib/VideoLibrary.svelte';
+	import VideoCarousel from '$lib/VideoCarousel.svelte';
+	import videoData from '$lib/videos.js';
 	/** @type {{open: () => void} | undefined} */
 	let library = $state();
-	import VideoCarousel from '$lib/VideoCarousel.svelte';
-	import videoData from '$lib/videos.json';
 	const featured = [...videoData].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
 </script>
 

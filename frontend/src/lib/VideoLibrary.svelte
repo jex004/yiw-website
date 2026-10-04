@@ -1,12 +1,12 @@
 <script>
 	import { dismissOnBackdrop } from '$lib/dismissOnBackdrop.js';
+	import videoData from '$lib/videos.js';
+	import { dateFormat, timestamp } from '$lib/dates.js';
 	/** @type {HTMLDialogElement} */
 	let dialog;
 	export function open() {
 		dialog.showModal();
 	}
-	import videoData from '$lib/videos.json';
-	import { dateFormat, timestamp } from '$lib/dates.js';
 	let order = $state('newest');
 	let failed = $state(/** @type {string[]} */ ([]));
 	let videos = $derived(
@@ -51,7 +51,7 @@
 				<li>
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- Public YouTube video. -->
 					<a
-						href={`https://www.youtube.com/watch?v=${video.id}`}
+						href={video.url}
 						target="_blank"
 						rel="noopener noreferrer"
 						aria-label={`Watch ${video.title} on YouTube (opens in a new tab)`}
@@ -59,7 +59,7 @@
 						<div class="thumbnail">
 							{#if !failed.includes(video.id)}
 								<img
-									src={video.thumbnail || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`}
+									src={video.thumbnail}
 									alt=""
 									loading="lazy"
 									onerror={() => (failed = [...failed, video.id])}

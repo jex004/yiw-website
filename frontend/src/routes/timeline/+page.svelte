@@ -2,7 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { dismissOnBackdrop } from '$lib/dismissOnBackdrop.js';
 	import { day, dateFormat, timestamp } from '$lib/dates.js';
-	import { layoutMarkers } from '$lib/timelineLayout.js';
+	import { layoutMarkers, minimumTimelineWidth, timelinePadding } from '$lib/timelineLayout.js';
 	/** @typedef {{id: string, date: string, title: string, summary: string, description: string, images: {url: string, alt: string}[]}} ServerEvent */
 	/** @type {ServerEvent[]} */
 	let events = $state([]);
@@ -10,8 +10,11 @@
 	let creation = $state(null);
 	let loading = $state(true);
 	let error = $state('');
-	let zoom = $state(1);
+	const defaultZoom = 0.8;
+	const minZoom = 0.25;
+	let zoom = $state(defaultZoom);
 	let width = $state(800);
+	let scrollLeft = $state(0);
 	let dragging = $state(false);
 	let visibleCount = $state(12);
 	let archiveSearch = $state('');
@@ -47,6 +50,10 @@
 	/** @type {ServerEvent | null} */
 	let selected = $state(null);
 	let expanded = $state(false);
+	let flipping = $state(false);
+	/** @type {Animation | undefined} */
+	let flipAnimation;
+	let fromArchive = $state(false);
 	/** @type {ServerEvent[]} */
 	let group = $state([]);
 	/** @param {string} value */
@@ -59,12 +66,13 @@
 	let last = $derived(
 		timelineEvents.length ? timestamp(chronological[chronological.length - 1].date) : day
 	);
-	let padding = $derived(Math.max((last - first) * 0.08, day * 7));
-	let start = $derived(first - padding);
-	let span = $derived(Math.max(day, last - first + padding * 2));
-	let trackWidth = $derived(Math.max(width, 320) * zoom);
+	let dates = $derived([...new Set(chronological.map((event) => timestamp(event.date)))]);
+	let start = $derived(first);
+	let span = $derived(Math.max(day, last - first));
+	let trackWidth = $derived(Math.max(width, minimumTimelineWidth(dates, width) * zoom));
 	/** @param {string} value */
-	const position = (value) => ((timestamp(value) - start) / span) * trackWidth;
+	const position = (value) =>
+		28 + ((timestamp(value) - start) / span) * (trackWidth - timelinePadding);
 	let markers = $derived.by(() => {
 		/** @type {{x: number, events: ServerEvent[]}[]} */
 		const result = [];
@@ -77,12 +85,18 @@
 		return result;
 	});
 	let layout = $derived(layoutMarkers(markers, trackWidth));
-	let ticks = $derived(
-		Array.from({ length: Math.ceil(trackWidth / 180) + 1 }, (_, i) => {
-			const fraction = i / Math.ceil(trackWidth / 180);
-			return { x: fraction * (trackWidth - 1), label: dateFormat.format(start + span * fraction) };
-		})
-	);
+	let ticks = $derived.by(() => {
+		const firstTick = Math.max(0, Math.floor(scrollLeft / 180) - 1);
+		const lastTick = Math.min(
+			Math.floor((trackWidth - 1) / 180),
+			Math.ceil((scrollLeft + width) / 180) + 1
+		);
+		return Array.from({ length: Math.max(0, lastTick - firstTick + 1) }, (_, index) => {
+			const x = (firstTick + index) * 180;
+			const fraction = Math.max(0, Math.min(1, (x - 28) / (trackWidth - timelinePadding)));
+			return { x, label: dateFormat.format(start + span * fraction) };
+		});
+	});
 	let selectedIndex = $derived(
 		selected ? timelineEvents.findIndex((event) => event.id === selected?.id) : -1
 	);
@@ -110,30 +124,57 @@
 		} finally {
 			loading = false;
 		}
+		if (!error) await resetView();
 	}
-	/** @param {ServerEvent} event @param {boolean} [showDetails] */
-	function openEvent(event, showDetails = false) {
+	/** @param {ServerEvent} event @param {boolean} [showDetails] @param {boolean} [archive] */
+	function openEvent(event, showDetails = false, archive = false) {
+		fromArchive = archive;
 		expanded = showDetails;
 		selected = event;
 		group = [];
 		if (!dialog.open) dialog.showModal();
 		dialog.scrollTop = 0;
 	}
-	/** @param {HTMLElement} node */
-	function flipDetails(node) {
-		const reducedMotion = node.ownerDocument.defaultView?.matchMedia(
-			'(prefers-reduced-motion: reduce)'
-		).matches;
-		return {
-			duration: reducedMotion ? 0 : 180,
-			css: (/** @type {number} */ t) =>
-				`opacity: ${t}; transform: perspective(1000px) rotateY(${(1 - t) * -75}deg);`
-		};
-	}
 	async function toggleDetails() {
-		expanded = !expanded;
-		await tick();
-		dialog.scrollTop = 0;
+		if (flipping || !selected) return;
+		if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			expanded = !expanded;
+			await tick();
+			dialog.scrollTop = 0;
+			return;
+		}
+		flipping = true;
+		const event = selected;
+		const direction = expanded ? -1 : 1;
+		const height = dialog.getBoundingClientRect().height;
+		const transform = (/** @type {number} */ angle) => `perspective(1400px) rotateY(${angle}deg)`;
+		try {
+			flipAnimation = dialog.animate(
+				[{ transform: transform(0) }, { transform: transform(direction * 90) }],
+				{ duration: 240, easing: 'ease-in', fill: 'forwards' }
+			);
+			await flipAnimation.finished;
+			if (!dialog.open || selected !== event) return;
+			expanded = !expanded;
+			await tick();
+			dialog.scrollTop = 0;
+			const nextHeight = dialog.offsetHeight;
+			flipAnimation.cancel();
+			flipAnimation = dialog.animate(
+				[
+					{ transform: transform(-direction * 90), height: `${height}px` },
+					{ transform: transform(0), height: `${nextHeight}px` }
+				],
+				{ duration: 300, easing: 'cubic-bezier(.16, 1, .3, 1)' }
+			);
+			await flipAnimation.finished;
+		} catch {
+			// Closing the popup cancels the flip.
+		} finally {
+			flipAnimation?.cancel();
+			flipAnimation = undefined;
+			flipping = false;
+		}
 	}
 	/** @param {ServerEvent[]} items */
 	function openMarker(items) {
@@ -146,14 +187,14 @@
 	async function setZoom(next, anchor = width / 2) {
 		if (!viewport) return;
 		const ratio = (viewport.scrollLeft + anchor) / trackWidth;
-		zoom = Math.max(1, Math.min(16, next));
+		zoom = Math.max(minZoom, Math.min(16, next));
 		await tick();
 		viewport.scrollLeft = ratio * trackWidth - anchor;
 	}
 	async function resetView() {
-		zoom = 1;
+		zoom = defaultZoom;
 		await tick();
-		if (viewport) viewport.scrollLeft = 0;
+		if (viewport) viewport.scrollLeft = viewport.scrollWidth;
 	}
 	/** @param {HTMLDivElement} node */
 	function draggable(node) {
@@ -247,7 +288,7 @@
 				<div class="controls" aria-label="Timeline controls">
 					<button
 						aria-label="Zoom out timeline"
-						disabled={!timelineEvents.length || zoom <= 1}
+						disabled={!timelineEvents.length || zoom <= minZoom}
 						onclick={() => setZoom(zoom / 1.5)}>&minus;</button
 					>
 					<span>{zoom.toFixed(1)}&times;</span>
@@ -256,7 +297,7 @@
 						disabled={!timelineEvents.length || zoom >= 16}
 						onclick={() => setZoom(zoom * 1.5)}>+</button
 					>
-					<button disabled={!timelineEvents.length} onclick={resetView}>Reset</button>
+					<button disabled={!timelineEvents.length} onclick={resetView}>Latest</button>
 				</div>
 			</div>
 			{#if timelineEvents.length}
@@ -266,11 +307,12 @@
 					class="timeline-viewport"
 					class:dragging
 					bind:this={viewport}
+					onscroll={(event) => (scrollLeft = event.currentTarget.scrollLeft)}
 					bind:clientWidth={width}
 					use:draggable
 					tabindex="0"
 					role="region"
-					aria-label="Event timeline. Scroll or drag horizontally. Plus and minus zoom; Home resets."
+					aria-label="Event timeline. Scroll or drag horizontally. Plus and minus zoom; Home resets to the latest events."
 					onkeydown={keyboard}
 				>
 					<div
@@ -279,48 +321,57 @@
 						style:height={`${layout.height}px`}
 						style={`--axis: ${layout.axis}px`}
 					>
-						<div class="axis"></div>
-						{#each ticks as mark (mark)}<div
-								class="tick"
-								class:last={mark === ticks[ticks.length - 1]}
-								style:left={`${mark.x}px`}
-							>
-								<span>{mark.label}</span>
-							</div>{/each}
-						{#each markers as marker, i (marker)}
-							{@const placement = layout.placed[i]}
-							<span
-								class="connector"
-								aria-hidden="true"
-								style:left={`${marker.x}px`}
-								style:top={`${layout.axis + (placement.below ? 0 : -placement.distance)}px`}
-								style:height={`${placement.distance}px`}
-							></span>
-							<button
-								class="event-marker"
-								style:left={`${marker.x}px`}
-								aria-label={marker.events.length === 1
-									? `${marker.events[0].title}, ${dateLabel(marker.events[0].date)}`
-									: `${marker.events.length} events on ${dateLabel(marker.events[0].date)}`}
-								onclick={() => openMarker(marker.events)}
-							>
-								<span class="pin"></span><span
-									class="marker-label"
-									style:left={`${placement.left - marker.x + 14}px`}
-									style:top={`${placement.offset + 14}px`}
-									><time>{dateLabel(marker.events[0].date)}</time>
-									<strong
-										>{marker.events.length === 1
-											? marker.events[0].title
-											: `${marker.events.length} events`}</strong
-									></span
+						<div
+							class="timeline-content"
+							style:width={`${trackWidth}px`}
+							style:height={`${layout.height}px`}
+						>
+							<div class="axis"></div>
+							{#each ticks as mark (mark)}<div
+									class="tick"
+									class:last={mark === ticks[ticks.length - 1]}
+									style:left={`${mark.x}px`}
 								>
-							</button>
-						{/each}
+									<span>{mark.label}</span>
+								</div>{/each}
+							{#each markers as marker, i (marker)}
+								{@const placement = layout.placed[i]}
+								<span
+									class="connector"
+									class:concealed={placement.hidden}
+									aria-hidden="true"
+									style:left={`${marker.x}px`}
+									style:top={`${layout.axis + (placement.below ? 0 : -placement.distance)}px`}
+									style:height={`${placement.distance}px`}
+								></span>
+								<button
+									class="event-marker"
+									class:compact={placement.hidden}
+									style:left={`${marker.x}px`}
+									aria-label={marker.events.length === 1
+										? `${marker.events[0].title}, ${dateLabel(marker.events[0].date)}`
+										: `${marker.events.length} events on ${dateLabel(marker.events[0].date)}`}
+									onclick={() => openMarker(marker.events)}
+								>
+									<span class="pin"></span><span
+										class="marker-label"
+										style:left={`${placement.left - marker.x + 14}px`}
+										style:top={`${placement.offset + 14}px`}
+										><time>{dateLabel(marker.events[0].date)}</time>
+										<strong
+											>{marker.events.length === 1
+												? marker.events[0].title
+												: `${marker.events.length} events`}</strong
+										></span
+									>
+								</button>
+							{/each}
+						</div>
 					</div>
 				</div>
 				<p class="timeline-hint">
-					Drag or swipe to move. Use + / &minus; to zoom. Click an event to read more.
+					Drag or swipe to move. Use + / &minus; to zoom. Hover or focus a dot to see its label;
+					click to read more.
 				</p>
 			{:else}<p class="empty">No events added yet.</p>{/if}
 		</section>
@@ -357,15 +408,15 @@
 					<article class="event-card">
 						{#if event.images[0]}<button
 								class="cover"
-								onclick={() => openEvent(event, true)}
+								onclick={() => openEvent(event, true, true)}
 								aria-label={`Read ${event.title}`}
 								><img src={event.images[0].url} alt={event.images[0].alt} loading="lazy" /></button
 							>{/if}
 						<div class="event-copy">
 							<time datetime={event.date}>{dateLabel(event.date)}</time>
-							<h3><button onclick={() => openEvent(event, true)}>{event.title}</button></h3>
+							<h3><button onclick={() => openEvent(event, true, true)}>{event.title}</button></h3>
 							{#if event.description}<p>{event.description}</p>{/if}
-							<button class="read-more" onclick={() => openEvent(event, true)}
+							<button class="read-more" onclick={() => openEvent(event, true, true)}
 								>View event &rarr;</button
 							>
 						</div>
@@ -385,6 +436,7 @@
 	bind:this={dialog}
 	aria-labelledby="event-title"
 	onclose={() => {
+		flipAnimation?.cancel();
 		selected = null;
 		group = [];
 	}}
@@ -395,36 +447,31 @@
 		>
 	</div>
 	{#if selected}
-		<div class="detail-stage">
-			{#key expanded}
-				<div class="detail-face" transition:flipDetails>
-					<time datetime={selected.date}>{dateLabel(selected.date)}</time>
-					<h2 id="event-title">{selected.title}</h2>
-					{#if expanded}
-						{#if selected.description}<p class="event-description">{selected.description}</p>{/if}
-					{:else}
-						{#if selected.summary}<p class="event-summary">{selected.summary}</p>{/if}
-					{/if}
-					{#if selected.images.length}<div class="event-photos">
-							{#each expanded ? selected.images : selected.images.slice(0, 1) as photo (photo)}<figure
-								>
-									<img src={photo.url} alt={photo.alt} />
-								</figure>{/each}
-						</div>{/if}
-				</div>
-			{/key}
-		</div>
-		{#if expanded || selected.description || selected.images.length > 1}
-			<button onclick={toggleDetails}>{expanded ? 'Back to summary' : 'View more'}</button>
+		<time datetime={selected.date}>{dateLabel(selected.date)}</time>
+		<h2 id="event-title">{selected.title}</h2>
+		{#if expanded}
+			{#if selected.description}<p class="event-description">{selected.description}</p>{/if}
+		{:else if selected.summary}
+			<p class="event-summary">{selected.summary}</p>
+		{/if}
+		{#if selected.images.length}<div class="event-photos">
+				{#each expanded ? selected.images : selected.images.slice(0, 1) as photo (photo)}
+					<figure><img src={photo.url} alt={photo.alt} /></figure>
+				{/each}
+			</div>{/if}
+		{#if !fromArchive && (expanded || selected.description || selected.images.length > 1)}
+			<button disabled={flipping} onclick={toggleDetails}>
+				{expanded ? 'Back to summary' : 'View more'}
+			</button>
 		{/if}
 		<div class="event-pagination">
 			<button
-				disabled={selectedIndex >= timelineEvents.length - 1}
-				onclick={() => openEvent(timelineEvents[selectedIndex + 1], expanded)}
+				disabled={flipping || selectedIndex >= timelineEvents.length - 1}
+				onclick={() => openEvent(timelineEvents[selectedIndex + 1], expanded, fromArchive)}
 				>&larr; Older event</button
 			><button
-				disabled={selectedIndex <= 0}
-				onclick={() => openEvent(timelineEvents[selectedIndex - 1], expanded)}
+				disabled={flipping || selectedIndex <= 0}
+				onclick={() => openEvent(timelineEvents[selectedIndex - 1], expanded, fromArchive)}
 				>Newer event &rarr;</button
 			>
 		</div>
@@ -488,6 +535,10 @@
 		position: relative;
 		isolation: isolate;
 		min-width: 100%;
+		overflow: hidden;
+	}
+	.timeline-content {
+		position: relative;
 	}
 	.axis {
 		position: absolute;
@@ -563,15 +614,29 @@
 		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
-		font-size: 0.75rem;
+		font-size: 0.8125rem;
 		line-height: 1.4;
 		overflow-wrap: anywhere;
 		margin-top: 6px;
 		font-weight: normal;
 	}
 	time {
-		font-size: 0.65rem;
+		font-size: 0.6875rem;
 		color: var(--muted);
+	}
+	.connector.concealed {
+		visibility: hidden;
+	}
+	.event-marker.compact .marker-label {
+		visibility: hidden;
+	}
+	.event-marker:hover,
+	.event-marker:focus {
+		z-index: 2;
+	}
+	.event-marker.compact:hover .marker-label,
+	.event-marker.compact:focus .marker-label {
+		visibility: visible;
 	}
 	.event-marker:hover .marker-label,
 	.event-marker:focus-visible .marker-label {
@@ -699,13 +764,6 @@
 	dialog h2 {
 		font-size: clamp(1.5rem, 4vw, 2.2rem);
 		overflow-wrap: anywhere;
-	}
-	.detail-stage {
-		display: grid;
-	}
-	.detail-face {
-		grid-area: 1 / 1;
-		min-width: 0;
 	}
 	.event-summary {
 		font-size: 0.95rem;
