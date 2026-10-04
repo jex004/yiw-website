@@ -109,13 +109,10 @@
 		left: 50%;
 		top: 50%;
 		aspect-ratio: 16 / 9;
-		border: 1px solid #819775;
 		border-radius: 10px;
 		overflow: hidden;
 		background: #dce8ce;
-		box-shadow:
-			0 5px 0 #91a68255,
-			0 14px 24px #303d3126;
+		box-shadow: 0 12px 24px #303d3126;
 		text-decoration: none;
 	}
 	.video-slide img {

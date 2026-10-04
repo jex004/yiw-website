@@ -25,10 +25,7 @@
 	aria-labelledby="cinema-title"
 >
 	<header class="marquee">
-		<div>
-			<p>YIW / PICTURE HOUSE</p>
-			<h2 id="cinema-title">Pure Cinema</h2>
-		</div>
+		<h2 id="cinema-title">All videos</h2>
 		<button class="close" onclick={() => dialog.close()} aria-label="Close video collection"
 			>Close &times;</button
 		>
@@ -36,7 +33,6 @@
 	<div class="cinema-content">
 		<div class="section-heading">
 			<div>
-				<h3>All videos</h3>
 				<p class="count">
 					{videos.length}
 					{videos.length === 1 ? 'video' : 'videos'} / opens on YouTube
@@ -51,7 +47,7 @@
 			</label>
 		</div>
 		<ul class="video-library">
-			{#each videos as video, index (video.id)}
+			{#each videos as video (video.id)}
 				<li>
 					<!-- eslint-disable svelte/no-navigation-without-resolve -- Public YouTube video. -->
 					<a
@@ -72,7 +68,6 @@
 							<span class="watch">Watch &nearr;</span>
 						</div>
 						<div class="video-info">
-							<span class="catalog-number">{String(index + 1).padStart(2, '0')}</span>
 							<div>
 								<time datetime={video.publishedAt}
 									>{dateFormat.format(timestamp(video.publishedAt))}</time
@@ -95,10 +90,10 @@
 		max-width: none;
 		max-height: 88dvh;
 		padding: 0;
-		color: #f7f3eb;
-		background: #202a24;
-		border: 1px solid #c6b77b;
-		border-radius: 14px;
+		color: var(--ink);
+		background: var(--paper);
+		border: 1px solid var(--line);
+		border-radius: 10px;
 		box-shadow: 0 24px 80px #0008;
 	}
 	.cinema::backdrop {
@@ -109,48 +104,40 @@
 		animation: cinema-enter 220ms ease-out;
 	}
 	.marquee {
+		position: relative;
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 16px;
-		padding: 28px;
-		border-bottom: 1px solid #8a805b;
-		background:
-			radial-gradient(circle, #e5d59a 2px, transparent 3px) 8px 6px / 24px 12px repeat-x,
-			radial-gradient(circle, #e5d59a 2px, transparent 3px) 8px calc(100% - 6px) / 24px 12px
-				repeat-x,
-			#303d31;
+		padding: 32px 28px 24px;
+		background: #e5e1eb;
+		border-bottom: 1px dashed #9890a3;
 	}
-	.marquee p {
-		font-size: 0.6rem;
-		letter-spacing: 0.15em;
-		color: #dcca91;
-		margin: 0 0 6px;
+	.marquee::before {
+		content: '';
+		position: absolute;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 12px;
+		background: repeating-linear-gradient(90deg, #4e5550 0 12px, #e5e1eb 12px 22px);
+		border-block: 3px solid #4e5550;
 	}
 	.marquee h2 {
-		font-size: clamp(1.5rem, 5vw, 2.2rem);
-		letter-spacing: 0.06em;
+		font-size: 1.4rem;
 		margin: 0;
 	}
 	.close {
 		background: transparent;
-		border-color: #c6b77b;
-		color: #f7f3eb;
+		border-color: var(--line);
+		color: var(--ink);
 		flex-shrink: 0;
 	}
 	.close:hover {
-		background: #4b5844;
+		background: var(--green-light);
 	}
 	.cinema-content {
 		padding: 0 24px 28px;
-	}
-	select {
-		background: #303d31;
-		color: #f7f3eb;
-		border-color: #8a977c;
-	}
-	.cinema :global(:focus-visible) {
-		outline-color: #e5d59a;
 	}
 	@keyframes cinema-enter {
 		from {
@@ -184,12 +171,11 @@
 		gap: 16px;
 		margin: 24px 0 16px;
 	}
-	.section-heading h3 {
-		margin: 0;
-	}
 	.count {
-		color: #b9bfac;
+		color: var(--muted);
 		font-size: 0.75rem;
+		padding: 6px 10px;
+		border-left: 3px solid #b8aac7;
 	}
 	label {
 		display: flex;
@@ -207,15 +193,11 @@
 	}
 	.video-library li {
 		min-width: 0;
-		border: 1px solid #66745e;
-		background: #2b352d;
-		box-shadow: 3px 3px 0 #111b16;
-		border-radius: 6px;
 	}
 	.video-library a {
 		display: block;
 		height: 100%;
-		color: #f7f3eb;
+		color: var(--ink);
 		text-decoration: none;
 	}
 	.thumbnail {
@@ -223,6 +205,8 @@
 		aspect-ratio: 16 / 9;
 		background: #dce8ce;
 		margin: 0;
+		border-radius: 8px;
+		box-shadow: 0 5px 14px #303d3118;
 		overflow: hidden;
 	}
 	.thumbnail img {
@@ -251,20 +235,11 @@
 		font-size: 0.75rem;
 	}
 	.video-info {
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: 12px;
-		padding: 14px;
-	}
-	.catalog-number {
-		color: #dcca91;
-		font-size: 1.5rem;
-		border-right: 1px dashed #66745e;
-		padding-right: 12px;
+		padding: 14px 2px;
 	}
 	time,
 	.video-info p {
-		color: #b9bfac;
+		color: var(--muted);
 		font-size: 0.65rem;
 	}
 	.video-info h3 {

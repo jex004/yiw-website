@@ -54,6 +54,12 @@
 		"links": ["https://codenames.game/"]
 	},
 	{
+		"name": "Geoguessr",
+		"category": "Online",
+		"note": "",
+		"links": ["https://geoguessr.com/"]
+	},
+	{
 		"name": "Among Us",
 		"category": "PC, Mobile",
 		"note": "",

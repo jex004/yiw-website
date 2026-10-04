@@ -1,5 +1,122 @@
 [
     {
+        "id": "5 Year Anniversary Gameday",
+        "date": "2025-09-13",
+        "title": "5 Year Anniversary Gameday",
+        "summary": "The first uttering of the term \"gameday\".",
+        "description": "A historical moment as the first ever gameday was held. This would be the first of many. And the beginning of HopeNot's hosting nightmares. \nThe games played were Gartic Phone, MC Bingo, MM Spin the Wheel, Codenames!",
+        "images": [
+            { "url": "/events/2025/moments-before-disaster.png", "alt": "moments before disaster strikes" },
+            { "url": "/events/2025/disaster-strikes.png", "alt": "subway strikes" },
+            { "url": "/events/2025/hidden-luc.png", "alt": "luc is hidden" },
+            { "url": "/events/2025/2025-gameday-skribbl.png", "alt": "gameday skribbl!" }
+        ]
+    },
+    {
+        "id": "2025 Summer Gameday",
+        "date": "2025-08-08",
+        "title": "2025 Summer Gameday",
+        "summary": "The first uttering of the term \"gameday\".",
+        "description": "A historical moment as the first ever gameday was held. This would be the first of many. And the beginning of HopeNot's hosting nightmares. \nThe games played were Gartic Phone, MM Hide and Seek, Skribbl.io, MC Bingo, and Among Us!",
+        "images": [
+            { "url": "/events/2025/moments-before-disaster.png", "alt": "moments before disaster strikes" },
+            { "url": "/events/2025/disaster-strikes.png", "alt": "subway strikes" },
+            { "url": "/events/2025/hidden-luc.png", "alt": "luc is hidden" },
+            { "url": "/events/2025/2025-gameday-skribbl.png", "alt": "gameday skribbl!" }
+        ]
+    },
+    {
+        "id": "Down to Business",
+        "date": "2024-08-15",
+        "title": "Down to Business",
+        "summary": "Getting down to business.",
+        "description": "Getting down to business but in reality we just stole Frennie's suit because we wanted to be cool like him ahaha.",
+        "images": [
+            { "url": "/events/2024/red-suit-group.png", "alt": "the red suit gang" },
+            { "url": "/events/2024/red-suit-train.png", "alt": "red suit train" },
+            { "url": "/events/2024/gance-in-prison.png", "alt": "gance be banished" }
+        ]
+    },
+    {
+        "id": "2024 Hide and Seek",
+        "date": "2024-08-14",
+        "title": "2024 Hide and Seek",
+        "summary": "Hiding and seeking.",
+        "description": "The start of properly planned and scheduled events all started here.",
+        "images": [
+            { "url": "/events/2024/2024-hide-and-seek.png", "alt": "hideeee and seek" },
+            { "url": "/events/2024/hidden-frennie.png", "alt": "frennie is hidden" }
+        ]
+    },
+    {
+        "id": "A Bountiful Harvest",
+        "date": "2023-08-08",
+        "title": "A Bountiful Harvest",
+        "summary": "A prosperous harvest season.",
+        "description": "The land yielded an abundance of crops. By crops I mean just carrots. A time of celebration and gratitude.",
+        "images": [
+            { "url": "/events/2023/bountiful-harvest.png", "alt": "pile of lions" },
+            { "url": "/events/2023/tall-carrot.png", "alt": "carrot stack" }
+        ]
+    },
+    {
+        "id": "Lion Takeover",
+        "date": "2022-11-10",
+        "title": "Lion Takeover",
+        "summary": "Just lion in a pile.",
+        "description": "Chimken who. The lions have taken over. And also at large. Be afraid.",
+        "images": [
+            { "url": "/events/2022/lion-pile.png", "alt": "pile of lions" },
+            { "url": "/events/2022/drowning-lions.png", "alt": "rip the lions" },
+            { "url": "/events/2022/underground-lions.png", "alt": "underground lions" },
+            { "url": "/events/2022/can-you-spot-him.png", "alt": "where's waldo" }
+        ]
+    },
+    {
+        "id": "Chimken Takeover",
+        "date": "2022-08-20",
+        "title": "Chimken Takeover",
+        "summary": "The chimken has taken over.",
+        "description": "The chimken is now in charge. And also at large. Be afraid.",
+        "images": [
+            { "url": "/events/2022/chimken-pyramid.png", "alt": "pyramid of chimken." },
+            { "url": "/events/2022/chimken-staircase.png", "alt": "gay chimken" }
+        ]
+    },
+    {
+        "id": "Us When :] pt. 2",
+        "date": "2022-02-03",
+        "title": "Us When :] pt. 2",
+        "summary": ":]",
+        "description": ":]",
+        "images": [
+            { "url": "/events/2022/smile-pt-2.png", "alt": "group smiley pic 2" }
+        ]
+    },
+    {
+        "id": "Frennie Takeover",
+        "date": "2021-12-28",
+        "title": "Frennie Takeover",
+        "summary": "Frennie is taking over.",
+        "description": "Everyone. Is. Frennie.",
+        "images": [
+            { "url": "/events/2021/frennie-takeover.png", "alt": "many frennie" },
+            { "url": "/events/2021/trapped.png", "alt": "let us out" }
+        ]
+    },
+    {
+        "id": "The Birth of MM Hide and Seek",
+        "date": "2021-12-16",
+        "title": "The Birth of MM Hide and Seek",
+        "summary": "The humble origins of our beloved hide and seek game.",
+        "description": "Hide and seek but with the rules adjusted to fit the Murder Mystery gamemode's life cycle. \nWe kept hiding in the same place and played roulette to see who would get killed first lolol.",
+        "images": [
+            { "url": "/events/2021/clueless.png", "alt": "hopnut the clueless" },
+            { "url": "/events/2021/the-puddle.png", "alt": "the puddle." },
+            { "url": "/events/2021/the-conglomerate.png", "alt": "the conglomerate." }
+        ]
+    },
+    {
         "id": "The Italian Dinos",
         "date": "2021-04-30",
         "title": "The Italian Dinos",
