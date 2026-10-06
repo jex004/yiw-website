@@ -26,13 +26,14 @@
 	let saveMessage = $state('');
 	let editingPreferredName = $state('');
 	let search = $state('');
+	let searchQuery = $derived(search.trim().toLowerCase());
 	let filteredMembers = $derived(
 		members.filter((member) =>
 			[
 				member.username,
 				member.preferred_name,
 				member.minecraft_username === 'Not set' ? '' : member.minecraft_username
-			].some((name) => name?.toLowerCase().includes(search.trim().toLowerCase()))
+			].some((name) => name?.toLowerCase().includes(searchQuery))
 		)
 	);
 	let ownsProfile = $derived.by(() => !!selected && currentUser?.discord_id === selected.id);

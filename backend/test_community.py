@@ -1,6 +1,6 @@
 import unittest
 
-from community import aggregate_locations, build_timeline, build_server_info, avatar_url
+from community import aggregate_locations, avatar_url, build_server_info, build_timeline
 
 
 def member(id, joined_at, bot=False, avatar=None):

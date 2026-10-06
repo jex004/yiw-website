@@ -1,16 +1,16 @@
-import importlib
 import base64
+import importlib
 import json
-import tempfile
-from pathlib import Path
-from itsdangerous import TimestampSigner
 import os
+import tempfile
 import unittest
-from unittest.mock import AsyncMock, MagicMock, patch
+from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
 
 from fastapi.testclient import TestClient
+from itsdangerous import TimestampSigner
 
 
 class DeploymentTests(unittest.TestCase):
@@ -183,7 +183,9 @@ class DeploymentTests(unittest.TestCase):
                         headers={"Origin": "https://example.test"},
                         json=data,
                     )
-                    self.assertEqual(result.status_code, 200 if length == limit else 422)
+                    self.assertEqual(
+                        result.status_code, 200 if length == limit else 422
+                    )
 
     def test_public_health_and_anonymous_session(self):
         self.assertEqual(self.client.get("/health").status_code, 200)

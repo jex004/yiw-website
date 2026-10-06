@@ -1,8 +1,9 @@
 <script>
+	import TimelineTrolley from '$lib/TimelineTrolley.svelte';
 	import { onMount, tick } from 'svelte';
 	import { dismissOnBackdrop } from '$lib/dismissOnBackdrop.js';
 	import { day, dateFormat, timestamp } from '$lib/dates.js';
-	import { layoutMarkers, minimumTimelineWidth, timelinePadding } from '$lib/timelineLayout.js';
+	import { layoutMarkers, timelinePadding } from '$lib/timelineLayout.js';
 	/** @typedef {{id: string, date: string, title: string, summary: string, description: string, images: {url: string, alt: string}[]}} ServerEvent */
 	/** @type {ServerEvent[]} */
 	let events = $state([]);
@@ -10,12 +11,25 @@
 	let creation = $state(null);
 	let loading = $state(true);
 	let error = $state('');
-	const defaultZoom = 0.8;
-	const minZoom = 0.25;
+	const defaultZoom = 1;
+	const minZoom = 0.4;
+	const maxZoom = 1.6;
+	const zoomStep = 0.2;
 	let zoom = $state(defaultZoom);
+	let zoomProgress = $derived((zoom - minZoom) / (defaultZoom - minZoom));
+	let labelScale = $derived(Math.min(1, Math.max(0, zoomProgress)));
+	let titleSize = $derived(0.625 + 0.1875 * labelScale);
+	let dateSize = $derived(0.5625 + 0.125 * labelScale);
+	let labelWidth = $derived(104 + 46 * labelScale);
 	let width = $state(800);
 	let scrollLeft = $state(0);
+	let scrolling = $state(false);
 	let dragging = $state(false);
+	/** @type {number | null} */
+	let hoveredMarker = $state(null);
+	/** @type {number | null} */
+	let focusedMarker = $state(null);
+	let activeMarker = $derived(hoveredMarker ?? focusedMarker);
 	let visibleCount = $state(12);
 	let archiveSearch = $state('');
 	let archiveSort = $state('newest');
@@ -66,10 +80,32 @@
 	let last = $derived(
 		timelineEvents.length ? timestamp(chronological[chronological.length - 1].date) : day
 	);
-	let dates = $derived([...new Set(chronological.map((event) => timestamp(event.date)))]);
 	let start = $derived(first);
 	let span = $derived(Math.max(day, last - first));
-	let trackWidth = $derived(Math.max(width, minimumTimelineWidth(dates, width) * zoom));
+	let trackWidth = $derived(width * (1 + 2.5 * zoomProgress));
+	let scrollProgress = $derived(
+		trackWidth > width ? Math.max(0, Math.min(1, scrollLeft / (trackWidth - width))) : 0.5
+	);
+	/** @param {HTMLDivElement} node */
+	function trackScroll(node) {
+		/** @type {ReturnType<typeof setTimeout> | undefined} */
+		let idleTimer;
+		function onScroll() {
+			if (scrollLeft === node.scrollLeft) return;
+			scrollLeft = node.scrollLeft;
+			scrolling = true;
+			clearTimeout(idleTimer);
+			idleTimer = setTimeout(() => (scrolling = false), 150);
+		}
+		node.addEventListener('scroll', onScroll, { passive: true });
+		return {
+			destroy() {
+				node.removeEventListener('scroll', onScroll);
+				clearTimeout(idleTimer);
+				scrolling = false;
+			}
+		};
+	}
 	/** @param {string} value */
 	const position = (value) =>
 		28 + ((timestamp(value) - start) / span) * (trackWidth - timelinePadding);
@@ -84,7 +120,18 @@
 		}
 		return result;
 	});
-	let layout = $derived(layoutMarkers(markers, trackWidth));
+	let layout = $derived(layoutMarkers(markers, trackWidth, labelWidth));
+	let obscuredMarkers = $derived.by(() => {
+		const active = activeMarker === null ? null : layout.placed[activeMarker];
+		return layout.placed.map(
+			(placement, index) =>
+				!!active &&
+				index !== activeMarker &&
+				placement.below === active.below &&
+				placement.left < active.left + labelWidth + 4 &&
+				placement.left + labelWidth + 4 > active.left
+		);
+	});
 	let ticks = $derived.by(() => {
 		const firstTick = Math.max(0, Math.floor(scrollLeft / 180) - 1);
 		const lastTick = Math.min(
@@ -187,7 +234,7 @@
 	async function setZoom(next, anchor = width / 2) {
 		if (!viewport) return;
 		const ratio = (viewport.scrollLeft + anchor) / trackWidth;
-		zoom = Math.max(minZoom, Math.min(16, next));
+		zoom = Math.max(minZoom, Math.min(maxZoom, Math.round(next * 10000) / 10000));
 		await tick();
 		viewport.scrollLeft = ratio * trackWidth - anchor;
 	}
@@ -254,11 +301,11 @@
 		if (event.target !== event.currentTarget) return;
 		if (event.key === '+' || event.key === '=') {
 			event.preventDefault();
-			void setZoom(zoom * 1.5);
+			void setZoom(zoom + zoomStep);
 		}
 		if (event.key === '-') {
 			event.preventDefault();
-			void setZoom(zoom / 1.5);
+			void setZoom(zoom - zoomStep);
 		}
 		if (event.key === 'Home') {
 			event.preventDefault();
@@ -289,13 +336,13 @@
 					<button
 						aria-label="Zoom out timeline"
 						disabled={!timelineEvents.length || zoom <= minZoom}
-						onclick={() => setZoom(zoom / 1.5)}>&minus;</button
+						onclick={() => setZoom(zoom - zoomStep)}>&minus;</button
 					>
 					<span>{zoom.toFixed(1)}&times;</span>
 					<button
 						aria-label="Zoom in timeline"
-						disabled={!timelineEvents.length || zoom >= 16}
-						onclick={() => setZoom(zoom * 1.5)}>+</button
+						disabled={!timelineEvents.length || zoom >= maxZoom}
+						onclick={() => setZoom(zoom + zoomStep)}>+</button
 					>
 					<button disabled={!timelineEvents.length} onclick={resetView}>Latest</button>
 				</div>
@@ -307,7 +354,7 @@
 					class="timeline-viewport"
 					class:dragging
 					bind:this={viewport}
-					onscroll={(event) => (scrollLeft = event.currentTarget.scrollLeft)}
+					use:trackScroll
 					bind:clientWidth={width}
 					use:draggable
 					tabindex="0"
@@ -323,6 +370,7 @@
 					>
 						<div
 							class="timeline-content"
+							style={`--event-title-size: ${titleSize}rem; --event-date-size: ${dateSize}rem; --event-label-width: ${labelWidth}px`}
 							style:width={`${trackWidth}px`}
 							style:height={`${layout.height}px`}
 						>
@@ -338,7 +386,7 @@
 								{@const placement = layout.placed[i]}
 								<span
 									class="connector"
-									class:concealed={placement.hidden}
+									class:concealed={(placement.hidden && i !== activeMarker) || obscuredMarkers[i]}
 									aria-hidden="true"
 									style:left={`${marker.x}px`}
 									style:top={`${layout.axis + (placement.below ? 0 : -placement.distance)}px`}
@@ -347,16 +395,22 @@
 								<button
 									class="event-marker"
 									class:compact={placement.hidden}
+									class:obscured={obscuredMarkers[i]}
 									style:left={`${marker.x}px`}
 									aria-label={marker.events.length === 1
 										? `${marker.events[0].title}, ${dateLabel(marker.events[0].date)}`
 										: `${marker.events.length} events on ${dateLabel(marker.events[0].date)}`}
 									onclick={() => openMarker(marker.events)}
+									onmouseenter={() => (hoveredMarker = i)}
+									onmouseleave={() => (hoveredMarker = null)}
+									onfocus={() => (focusedMarker = i)}
+									onblur={() => (focusedMarker = null)}
 								>
 									<span class="pin"></span><span
 										class="marker-label"
+										class:above={!placement.below}
 										style:left={`${placement.left - marker.x + 14}px`}
-										style:top={`${placement.offset + 14}px`}
+										style:top={`${14 + (placement.below ? placement.distance : -placement.distance)}px`}
 										><time>{dateLabel(marker.events[0].date)}</time>
 										<strong
 											>{marker.events.length === 1
@@ -368,6 +422,7 @@
 							{/each}
 						</div>
 					</div>
+					<TimelineTrolley moving={scrolling} progress={scrollProgress} />
 				</div>
 				<p class="timeline-hint">
 					Drag or swipe to move. Use + / &minus; to zoom. Hover or focus a dot to see its label;
@@ -518,6 +573,7 @@
 		padding: 7px 11px;
 	}
 	.timeline-viewport {
+		background: #d5edf7;
 		overflow-x: auto;
 		overflow-y: hidden;
 		cursor: grab;
@@ -592,14 +648,23 @@
 	}
 	.marker-label {
 		position: absolute;
-		width: 150px;
-		height: 76px;
+		width: var(--event-label-width);
 		box-sizing: border-box;
 		z-index: 1;
 		text-align: left;
-		border-left: 2px solid var(--green);
-		padding: 8px 10px;
-		background: var(--paper);
+		padding: 8px 10px 8px 12px;
+		background: transparent;
+	}
+	.marker-label::before {
+		content: '';
+		position: absolute;
+		left: 0;
+		inset-block: calc(8px + var(--event-title-size) * 0.15);
+		width: 2px;
+		background: var(--green);
+	}
+	.marker-label.above {
+		transform: translateY(-100%);
 	}
 	.connector {
 		position: absolute;
@@ -614,15 +679,21 @@
 		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
-		font-size: 0.8125rem;
+		font-size: var(--event-title-size);
+		transition: font-size 150ms ease;
 		line-height: 1.4;
 		overflow-wrap: anywhere;
-		margin-top: 6px;
+		margin-top: 0.4em;
 		font-weight: normal;
 	}
 	time {
 		font-size: 0.6875rem;
 		color: var(--muted);
+	}
+	.marker-label time {
+		display: block;
+		font-size: var(--event-date-size);
+		line-height: 1.4;
 	}
 	.connector.concealed {
 		visibility: hidden;
@@ -630,17 +701,24 @@
 	.event-marker.compact .marker-label {
 		visibility: hidden;
 	}
-	.event-marker:hover,
 	.event-marker:focus {
 		z-index: 2;
+	}
+	.event-marker:hover {
+		z-index: 3;
 	}
 	.event-marker.compact:hover .marker-label,
 	.event-marker.compact:focus .marker-label {
 		visibility: visible;
 	}
+	.timeline-content .event-marker.obscured .marker-label {
+		visibility: hidden;
+	}
 	.event-marker:hover .marker-label,
 	.event-marker:focus-visible .marker-label {
-		background: #dce8ce;
+		text-shadow:
+			0 0 3px #d5edf7,
+			0 0 6px #d5edf7;
 		outline: 1px solid var(--green);
 	}
 	.event-marker:hover .pin,
@@ -812,6 +890,11 @@
 	.group-list time {
 		display: block;
 		margin-bottom: 8px;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.marker-label strong {
+			transition: none;
+		}
 	}
 	@media (max-width: 650px) {
 		.panel-heading {
