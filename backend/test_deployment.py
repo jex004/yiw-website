@@ -14,7 +14,7 @@ from uuid import uuid4
 from fastapi.testclient import TestClient
 from itsdangerous import TimestampSigner
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 
@@ -422,6 +422,37 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(discord.get.await_count, 1)
         self.assertEqual(response.headers["location"], "https://example.test/members")
 
+    def test_first_signin_dates_restore_once_and_survive_retention(self):
+        app = self.app_module
+        engine = create_engine("sqlite://")
+        app.Base.metadata.create_all(engine)
+        today = datetime.now(timezone.utc).date()
+        first_day = today - timedelta(days=100)
+        try:
+            with Session(engine) as db:
+                db.add(app.User(discord_id="legacy", username="Legacy"))
+                db.add(
+                    app.SignInCount(
+                        day=first_day,
+                        user_id="legacy",
+                        count=1,
+                        last_signin=datetime.now(timezone.utc) - timedelta(days=100),
+                    )
+                )
+                db.commit()
+                app.restore_first_signin_dates(db)
+                db.commit()
+                self.assertEqual(db.get(app.User, "legacy").first_signin_day, first_day)
+                for _ in range(2):
+                    app.record_metric(db, "signin", "legacy")
+                    db.commit()
+                    self.assertEqual(
+                        db.get(app.User, "legacy").first_signin_day, first_day
+                    )
+                self.assertEqual(db.query(app.SignInCount).count(), 1)
+        finally:
+            engine.dispose()
+
     def test_analytics_counts_and_owner_access(self):
         app = self.app_module
         engine = create_engine(
@@ -574,7 +605,7 @@ class DeploymentTests(unittest.TestCase):
                     db.commit()
                 updated = self.client.get("/api/stats?days=90").json()
                 self.assertEqual(updated["all_time_accounts"], 3)
-                self.assertEqual(sum(day["accounts"] for day in updated["daily"]), 1)
+                self.assertEqual(sum(day["accounts"] for day in updated["daily"]), 2)
                 self.assertEqual(
                     self.client.get("/api/stats?days=100").status_code, 422
                 )

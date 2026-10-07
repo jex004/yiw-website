@@ -152,6 +152,18 @@ def ensure_view_total(db):
         )
 
 
+def restore_first_signin_dates(db):
+    earliest = (
+        db.query(func.min(SignInCount.day))
+        .filter(SignInCount.user_id == User.discord_id)
+        .correlate(User)
+        .scalar_subquery()
+    )
+    db.query(User).filter(User.first_signin_day.is_(None), earliest.isnot(None)).update(
+        {User.first_signin_day: earliest}, synchronize_session=False
+    )
+
+
 def record_metric(db, kind, identifier):
     ensure_view_total(db)
     if kind == "view":
@@ -190,6 +202,7 @@ def record_metric(db, kind, identifier):
                 },
             )
         )
+    restore_first_signin_dates(db)
     cutoff = today - timedelta(days=89)
     for model in (AnalyticsCount, SignInCount):
         db.query(model).filter(model.day < cutoff).delete(synchronize_session=False)
@@ -386,6 +399,7 @@ async def site_stats(
 ):
     await require_server_owner(request)
     ensure_view_total(db)
+    restore_first_signin_dates(db)
     db.commit()
     all_time_views = db.get(AnalyticsTotal, "view").count
     today = datetime.now(timezone.utc).date()
