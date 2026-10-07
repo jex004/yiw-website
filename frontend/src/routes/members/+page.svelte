@@ -2,9 +2,27 @@
 	import { onMount, tick } from 'svelte';
 	import { dismissOnBackdrop } from '$lib/dismissOnBackdrop.js';
 	import MemberJoinChart from '$lib/MemberJoinChart.svelte';
+	import ProfileComments from '$lib/ProfileComments.svelte';
 	/** @typedef {{id: string, username: string, avatar_url: string, date_joined: string, minecraft_username: string, preferred_name?: string, bio: string, detailed_bio?: string}} Member */
 	/** @type {{discord_id: string, username: string} | null} */
 	let currentUser = $state(null);
+	let loggingOut = $state(false);
+	let logoutError = $state('');
+	async function logout() {
+		if (loggingOut) return;
+		loggingOut = true;
+		logoutError = '';
+		try {
+			const response = await fetch('/api/logout', { method: 'POST', credentials: 'include' });
+			if (!response.ok) throw new Error('Could not log out. Please try again.');
+			currentUser = null;
+			editing = false;
+		} catch {
+			logoutError = 'Could not log out. Please try again.';
+		} finally {
+			loggingOut = false;
+		}
+	}
 	/** @type {Member[]} */
 	let members = $state([]);
 	/** @type {Member | null} */
@@ -168,8 +186,12 @@
 			<a class="button-link" href="/login" data-sveltekit-reload>Log in with Discord &rarr;</a
 			>{:else}<p class="signed-in">
 				Logged in as <strong>{currentUser.username}</strong>
+				<button class="logout" onclick={logout} disabled={loggingOut}
+					>{loggingOut ? 'Logging out...' : 'Log out'}</button
+				>
 			</p>{/if}
 	</header>
+	{#if logoutError}<p role="alert">{logoutError}</p>{/if}
 	<MemberJoinChart />
 	<div class="roster-label">
 		<span>MEMBER DIRECTORY</span><span
@@ -326,12 +348,18 @@
 						>{/if}
 				{/if}
 				{#if saveMessage}<p class="save-message" role="status">{saveMessage}</p>{/if}
+				{#key selected.id}<ProfileComments profileId={selected.id} {currentUser} />{/key}
 			</div>
 		</div>
 	{/if}
 </dialog>
 
 <style>
+	.logout {
+		margin-left: 10px;
+		padding: 6px 10px;
+		font-size: 0.7rem;
+	}
 	.directory-search {
 		display: grid;
 		gap: 8px;

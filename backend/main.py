@@ -1,18 +1,36 @@
+import hashlib
+import hmac
 import json
 import os
 import secrets
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlencode
+from uuid import UUID, uuid4
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import Body, Depends, FastAPI, HTTPException, Request
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import Column, Date, String, create_engine, text
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    create_engine,
+    func,
+    text,
+)
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -74,6 +92,79 @@ class TimelineEvent(Base):
     icon = Column(String)
 
 
+class ProfileComment(Base):
+    __tablename__ = "profile_comments"
+    __table_args__ = (
+        UniqueConstraint("profile_id", "author_id", "slot"),
+        CheckConstraint("slot IN (1, 2)"),
+    )
+    id = Column(String, primary_key=True, default=lambda: str(uuid4()))
+    profile_id = Column(String, nullable=False, index=True)
+    author_id = Column(String, ForeignKey("users.discord_id"), nullable=False)
+    slot = Column(Integer, nullable=False)
+    body = Column(String(200), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class AnalyticsCount(Base):
+    __tablename__ = "analytics_counts"
+    day = Column(Date, primary_key=True)
+    kind = Column(String, primary_key=True)
+    visitor = Column(String(64), primary_key=True)
+    count = Column(Integer, nullable=False)
+
+
+class SignInCount(Base):
+    __tablename__ = "signin_counts"
+    day = Column(Date, primary_key=True)
+    user_id = Column(String, ForeignKey("users.discord_id"), primary_key=True)
+    count = Column(Integer, nullable=False)
+    last_signin = Column(DateTime(timezone=True), nullable=False)
+
+
+def record_metric(db, kind, identifier):
+    today = datetime.now(timezone.utc).date()
+    digest = hmac.new(
+        SESSION_SECRET.encode(), f"{today}:{kind}:{identifier}".encode(), hashlib.sha256
+    ).hexdigest()
+    insert = (
+        sqlite_insert if db.get_bind().dialect.name == "sqlite" else postgres_insert
+    )
+    statement = insert(AnalyticsCount).values(
+        day=today, kind=kind, visitor=digest, count=1
+    )
+    db.execute(
+        statement.on_conflict_do_update(
+            index_elements=["day", "kind", "visitor"],
+            set_={"count": AnalyticsCount.count + 1},
+        )
+    )
+    if kind == "signin":
+        statement = insert(SignInCount).values(
+            day=today,
+            user_id=identifier,
+            count=1,
+            last_signin=datetime.now(timezone.utc),
+        )
+        db.execute(
+            statement.on_conflict_do_update(
+                index_elements=["day", "user_id"],
+                set_={
+                    "count": SignInCount.count + 1,
+                    "last_signin": statement.excluded.last_signin,
+                },
+            )
+        )
+    cutoff = today - timedelta(days=89)
+    for model in (AnalyticsCount, SignInCount):
+        db.query(model).filter(model.day < cutoff).delete(synchronize_session=False)
+
+
 Base.metadata.create_all(bind=engine)
 
 # Keep existing profile tables compatible.
@@ -91,6 +182,11 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def require_same_origin(request: Request):
+    if request.headers.get("origin") != PUBLIC_URL:
+        raise HTTPException(403, "Invalid request origin.")
 
 
 app = FastAPI()
@@ -132,7 +228,7 @@ def login(request: Request):
             "client_id": CLIENT_ID,
             "response_type": "code",
             "redirect_uri": REDIRECT_URI,
-            "scope": "identify guilds",
+            "scope": "identify",
             "state": state,
         }
     )
@@ -176,19 +272,6 @@ async def auth_callback(
         )
         user_data = user_response.json()
 
-        guilds_response = await client.get(
-            "https://discord.com/api/users/@me/guilds",
-            headers={"Authorization": f"Bearer {access_token}"},
-        )
-        guilds_data = guilds_response.json()
-
-        is_in_server = any(guild["id"] == YIW_SERVER_ID for guild in guilds_data)
-
-        if not is_in_server:
-            return {
-                "error": "Access Denied. You are not a member of the required Discord server."
-            }
-
         discord_id = user_data["id"]
         username = user_data["username"]
         user_avatar = avatar_url(user_data, fallback=None)
@@ -203,6 +286,8 @@ async def auth_callback(
                 discord_id=discord_id, username=username, avatar_url=user_avatar
             )
             db.add(new_user)
+        db.flush()
+        record_metric(db, "signin", discord_id)
         db.commit()
         db.refresh(existing_user if existing_user else new_user)
 
@@ -211,6 +296,111 @@ async def auth_callback(
         response = RedirectResponse(url=PUBLIC_URL + "/members")
         response.delete_cookie("discord_id")
         return response
+
+
+@app.post("/api/visits", status_code=204)
+def count_visit(
+    request: Request,
+    visitor: UUID = Body(..., embed=True),
+    db: Session = Depends(get_db),
+):
+    require_same_origin(request)
+    record_metric(db, "view", str(visitor))
+    db.commit()
+
+
+@app.get("/api/stats")
+async def site_stats(
+    request: Request, days: int = Query(30, ge=1, le=90), db: Session = Depends(get_db)
+):
+    discord_id = request.session.get("discord_id")
+    if not discord_id:
+        raise HTTPException(
+            401, "Sign in with the server owner's Discord account to view statistics."
+        )
+    if not DISCORD_BOT_TOKEN or not YIW_SERVER_ID:
+        raise HTTPException(503, "Discord server access has not been configured.")
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            response = await client.get(
+                f"https://discord.com/api/v10/guilds/{YIW_SERVER_ID}",
+                headers={"Authorization": f"Bot {DISCORD_BOT_TOKEN}"},
+            )
+            response.raise_for_status()
+            owner_id = response.json()["owner_id"]
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        raise HTTPException(
+            503, "Could not verify the server owner. Please try again."
+        ) from None
+    if discord_id != owner_id:
+        raise HTTPException(403, "Only the Discord server owner can view statistics.")
+    today = datetime.now(timezone.utc).date()
+    start = today - timedelta(days=days - 1)
+    rows = (
+        db.query(
+            AnalyticsCount.day,
+            AnalyticsCount.kind,
+            func.sum(AnalyticsCount.count),
+            func.count(),
+        )
+        .filter(AnalyticsCount.day >= start, AnalyticsCount.day <= today)
+        .group_by(AnalyticsCount.day, AnalyticsCount.kind)
+        .all()
+    )
+    daily = {}
+    for offset in range(days):
+        day = start + timedelta(days=offset)
+        daily[day] = {
+            "date": day.isoformat(),
+            "views": 0,
+            "visitors": 0,
+            "signins": 0,
+            "accounts": 0,
+        }
+    for day, kind, total, unique in rows:
+        total_key, unique_key = (
+            ("views", "visitors") if kind == "view" else ("signins", "accounts")
+        )
+        daily[day][total_key] = total
+        daily[day][unique_key] = unique
+    accounts = (
+        db.query(
+            User.discord_id,
+            User.username,
+            func.sum(SignInCount.count),
+            func.max(SignInCount.last_signin),
+        )
+        .join(SignInCount, SignInCount.user_id == User.discord_id)
+        .filter(SignInCount.day >= start, SignInCount.day <= today)
+        .group_by(User.discord_id, User.username)
+        .order_by(func.max(SignInCount.last_signin).desc(), User.discord_id)
+        .all()
+    )
+    return JSONResponse(
+        {
+            "daily": list(reversed(daily.values())),
+            "signed_in_users": [
+                {
+                    "id": user_id,
+                    "username": username,
+                    "count": count,
+                    "last_signin": (
+                        last_signin.replace(tzinfo=timezone.utc)
+                        if last_signin.tzinfo is None
+                        else last_signin.astimezone(timezone.utc)
+                    ).isoformat(),
+                }
+                for user_id, username, count, last_signin in accounts
+            ],
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.post("/api/logout", status_code=204)
+def logout(request: Request):
+    require_same_origin(request)
+    request.session.clear()
 
 
 @app.get("/api/me")
@@ -293,8 +483,7 @@ def update_profile(
     detailed_bio: str | None = Body(None, max_length=500),
     preferred_name: str | None = Body(None, max_length=16),
 ):
-    if request.headers.get("origin") != PUBLIC_URL:
-        raise HTTPException(403, "Invalid request origin.")
+    require_same_origin(request)
     discord_id = request.session.get("discord_id")
     if not discord_id:
         return {"error": "Not logged in"}
@@ -311,6 +500,120 @@ def update_profile(
     user.minecraft_username = mc_name
     db.commit()
     return {"status": "success"}
+
+
+def comment_author(request: Request, db: Session = Depends(get_db)):
+    require_same_origin(request)
+    discord_id = request.session.get("discord_id")
+    user = db.get(User, discord_id) if discord_id else None
+    if user is None:
+        raise HTTPException(401, "Sign in with Discord to comment.")
+    return user
+
+
+def comment_text(body):
+    body = body.strip()
+    if not body:
+        raise HTTPException(422, "Comments cannot be blank.")
+    return body
+
+
+def serialize_comment(comment, author):
+    return {
+        "id": comment.id,
+        "author_id": comment.author_id,
+        "username": author.username,
+        "body": comment.body,
+        "created_at": comment.created_at,
+        "updated_at": comment.updated_at,
+    }
+
+
+@app.get("/api/members/{profile_id}/comments")
+def get_comments(profile_id: str, db: Session = Depends(get_db)):
+    rows = (
+        db.query(ProfileComment, User)
+        .join(User, ProfileComment.author_id == User.discord_id)
+        .filter(ProfileComment.profile_id == profile_id)
+        .order_by(ProfileComment.created_at, ProfileComment.id)
+        .all()
+    )
+    return {
+        "comments": [serialize_comment(comment, author) for comment, author in rows]
+    }
+
+
+@app.post("/api/members/{profile_id}/comments", status_code=201)
+async def create_comment(
+    profile_id: str,
+    body: str = Body(..., embed=True, min_length=1, max_length=200),
+    author: User = Depends(comment_author),
+    db: Session = Depends(get_db),
+):
+    body = comment_text(body)
+    members = await fetch_members(DISCORD_BOT_TOKEN, YIW_SERVER_ID)
+    if not any(
+        m["user"]["id"] == profile_id and not m["user"].get("bot") for m in members
+    ):
+        raise HTTPException(404, "Member profile not found.")
+    # Serialize this author's inserts; the slot constraint also enforces the limit.
+    db.query(User).filter(User.discord_id == author.discord_id).with_for_update().one()
+    used = {
+        row.slot
+        for row in db.query(ProfileComment)
+        .filter_by(profile_id=profile_id, author_id=author.discord_id)
+        .all()
+    }
+    slot = next((slot for slot in (1, 2) if slot not in used), None)
+    if slot is None:
+        raise HTTPException(409, "You can leave up to two comments on each profile.")
+    comment = ProfileComment(
+        profile_id=profile_id, author_id=author.discord_id, slot=slot, body=body
+    )
+    db.add(comment)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            409, "Your comments changed. Refresh and try again."
+        ) from None
+    db.refresh(comment)
+    return serialize_comment(comment, author)
+
+
+def owned_comment(comment_id, author, db):
+    comment = db.get(ProfileComment, comment_id)
+    if comment is None:
+        raise HTTPException(404, "Comment not found.")
+    if comment.author_id != author.discord_id:
+        raise HTTPException(403, "You can only change your own comments.")
+    return comment
+
+
+@app.patch("/api/comments/{comment_id}")
+def edit_comment(
+    comment_id: str,
+    body: str = Body(..., embed=True, min_length=1, max_length=200),
+    author: User = Depends(comment_author),
+    db: Session = Depends(get_db),
+):
+    comment = owned_comment(comment_id, author, db)
+    comment.body = comment_text(body)
+    comment.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(comment)
+    return serialize_comment(comment, author)
+
+
+@app.delete("/api/comments/{comment_id}", status_code=204)
+def delete_comment(
+    comment_id: str,
+    author: User = Depends(comment_author),
+    db: Session = Depends(get_db),
+):
+    db.delete(owned_comment(comment_id, author, db))
+    db.commit()
 
 
 @app.get("/api/timeline")
@@ -405,6 +708,7 @@ if STATIC_DIR.is_dir():
     @app.get("/map")
     @app.get("/timeline")
     @app.get("/gallery")
+    @app.get("/stats")
     def website():
         return FileResponse(
             STATIC_DIR / "index.html", headers={"Cache-Control": "no-cache"}
