@@ -1,21 +1,23 @@
 <script>
-	/** @typedef {{date: string, views: number, visitors: number, signins: number, accounts: number}} Day */
+	/** @typedef {{date: string, views: number, visitors: number, accounts: number}} Day */
 	/** @type {Day[]} */
 	let daily = $state([]);
-	/** @type {{id: string, username: string, count: number, last_signin: string}[]} */
+	let allTimeViews = $state(0);
+	let allTimeAccounts = $state(0);
+	/** @type {{id: string, username: string, last_signin: string}[]} */
 	let signedInUsers = $state([]);
 	const signinDate = new Intl.DateTimeFormat('en', {
 		dateStyle: 'medium',
 		timeStyle: 'short',
 		timeZone: 'UTC'
 	});
-	let days = $state(30);
+	let days = $state(7);
 	let loading = $state(true);
 	let error = $state('');
 	let needsLogin = $state(false);
 	let refresh = $state(0);
 	let views = $derived(daily.reduce((sum, day) => sum + day.views, 0));
-	let signins = $derived(daily.reduce((sum, day) => sum + day.signins, 0));
+	let visitors = $derived(daily.reduce((sum, day) => sum + day.visitors, 0));
 	$effect(() => {
 		const period = days;
 		void refresh;
@@ -34,6 +36,8 @@
 					);
 				}
 				daily = data.daily;
+				allTimeViews = data.all_time_views;
+				allTimeAccounts = data.all_time_accounts;
 				signedInUsers = data.signed_in_users;
 			} catch (err) {
 				if (!controller.signal.aborted)
@@ -71,57 +75,50 @@
 		>
 		<dl>
 			<div>
-				<dt>Page views</dt>
+				<dt>All-time page views</dt>
+				<dd>{allTimeViews.toLocaleString()}</dd>
+			</div>
+			<div>
+				<dt>Page views (last {days} days)</dt>
 				<dd>{views.toLocaleString()}</dd>
 			</div>
 			<div>
-				<dt>Successful sign-ins</dt>
-				<dd>{signins.toLocaleString()}</dd>
+				<dt title="Daily visitor counts added together; returning on another day counts again.">
+					Visitors (last {days} days)
+				</dt>
+				<dd>{visitors.toLocaleString()}</dd>
 			</div>
 			<div>
-				<dt>Visitors today (approx.)</dt>
-				<dd>{(daily[0]?.visitors ?? 0).toLocaleString()}</dd>
+				<dt>All-time unique Discord logins</dt>
+				<dd>{allTimeAccounts.toLocaleString()}</dd>
 			</div>
 		</dl>
-		<p>
-			Visitors are counted per browser per day. Different devices or cleared storage can count
-			someone again; blocked tracking can miss visits. Daily account counts come from successful
-			Discord sign-ins, not login-button clicks. These are approximate activity metrics, not
-			verified human counts.
-		</p>
 		<div class="table-wrap">
 			<table>
 				<caption>Daily activity — counts begin when this feature is deployed</caption><thead
 					><tr
 						><th scope="col">Date</th><th scope="col">Page views</th><th scope="col">Visitors</th
-						><th scope="col">Sign-ins</th><th scope="col">Accounts signing in</th></tr
+						><th scope="col">First-time Discord logins</th></tr
 					></thead
 				><tbody
 					>{#each daily as day (day.date)}<tr
 							><th scope="row">{day.date}</th><td>{day.views}</td><td>{day.visitors}</td><td
-								>{day.signins}</td
-							><td>{day.accounts}</td></tr
+								>{day.accounts}</td
+							></tr
 						>{/each}</tbody
 				>
 			</table>
 		</div>
-		<h2>Discord sign-ins</h2>
-		<p>
-			Accounts that signed in during the selected period, most recent first. Username records begin
-			with this update; earlier aggregate counts remain in the daily table.
-		</p>
+		<h2>Discord accounts</h2>
 		{#if signedInUsers.length}
 			<div class="table-wrap">
 				<table>
 					<caption>Signed-in users — visible only to the server owner</caption><thead
-						><tr
-							><th scope="col">Discord username</th><th scope="col">Sign-ins</th><th scope="col"
-								>Latest sign-in (UTC)</th
-							></tr
+						><tr><th scope="col">Discord username</th><th scope="col">Latest sign-in (UTC)</th></tr
 						></thead
 					><tbody
 						>{#each signedInUsers as user (user.id)}<tr
-								><th scope="row">{user.username}</th><td>{user.count}</td><td
+								><th scope="row">{user.username}</th><td
 									>{signinDate.format(new Date(user.last_signin))}</td
 								></tr
 							>{/each}</tbody

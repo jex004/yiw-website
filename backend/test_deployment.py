@@ -430,10 +430,28 @@ class DeploymentTests(unittest.TestCase):
         app.Base.metadata.create_all(engine)
         factory = sessionmaker(bind=engine)
         with factory() as db:
+            db.add(
+                app.AnalyticsCount(
+                    day=datetime.now(timezone.utc).date() - timedelta(days=91),
+                    kind="view",
+                    visitor="historical",
+                    count=23,
+                )
+            )
             db.add_all(
                 [
-                    app.User(discord_id="owner", username="ServerOwner"),
-                    app.User(discord_id="someone-else", username="Visitor"),
+                    app.User(
+                        discord_id="owner",
+                        username="ServerOwner",
+                        first_signin_day=datetime.now(timezone.utc).date()
+                        - timedelta(days=1),
+                    ),
+                    app.User(
+                        discord_id="someone-else",
+                        username="Visitor",
+                        first_signin_day=datetime.now(timezone.utc).date(),
+                    ),
+                    app.User(discord_id="past-user", username="PastVisitor"),
                 ]
             )
             db.commit()
@@ -468,6 +486,9 @@ class DeploymentTests(unittest.TestCase):
                     204,
                 )
             self.assertEqual(self.client.get("/api/stats").status_code, 401)
+            self.assertEqual(
+                self.client.get("/api/stats/access").json(), {"is_owner": False}
+            )
             with factory() as db:
                 app.record_metric(db, "signin", "owner")
                 app.record_metric(db, "signin", "owner")
@@ -513,6 +534,9 @@ class DeploymentTests(unittest.TestCase):
                     )
                     response = self.client.get("/api/stats?days=7")
                     self.assertEqual(response.status_code, expected)
+                    access = self.client.get("/api/stats/access")
+                    self.assertEqual(access.json(), {"is_owner": account == "owner"})
+                    self.assertEqual(access.headers["Cache-Control"], "no-store")
                 users = {
                     user["username"]: user
                     for user in response.json()["signed_in_users"]
@@ -522,6 +546,14 @@ class DeploymentTests(unittest.TestCase):
                 self.assertEqual(users["Visitor"]["count"], 1)
                 self.assertTrue(users["ServerOwner"]["last_signin"].endswith("+00:00"))
                 data = response.json()["daily"]
+                self.assertEqual(response.json()["all_time_views"], 27)
+                self.assertEqual(response.json()["all_time_accounts"], 3)
+                self.assertEqual(
+                    self.client.get("/api/stats?days=90").json()["all_time_accounts"], 3
+                )
+                self.assertEqual(
+                    self.client.get("/api/stats?days=90").json()["all_time_views"], 27
+                )
                 self.assertEqual(len(data), 7)
                 self.assertEqual(
                     data[0],
@@ -530,10 +562,19 @@ class DeploymentTests(unittest.TestCase):
                         "views": 4,
                         "visitors": 2,
                         "signins": 3,
-                        "accounts": 2,
+                        "accounts": 1,
                     },
                 )
                 self.assertEqual(data[1]["views"], 0)
+                self.assertEqual(data[1]["accounts"], 1)
+                with factory() as db:
+                    db.get(app.User, "owner").first_signin_day -= timedelta(days=100)
+                    app.record_metric(db, "signin", "owner")
+                    app.record_metric(db, "signin", "past-user")
+                    db.commit()
+                updated = self.client.get("/api/stats?days=90").json()
+                self.assertEqual(updated["all_time_accounts"], 3)
+                self.assertEqual(sum(day["accounts"] for day in updated["daily"]), 1)
                 self.assertEqual(
                     self.client.get("/api/stats?days=100").status_code, 422
                 )

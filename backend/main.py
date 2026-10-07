@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     Column,
     Date,
@@ -81,6 +82,7 @@ class User(Base):
     preferred_name = Column(String)
     bio = Column(String)
     detailed_bio = Column(String)
+    first_signin_day = Column(Date)
 
 
 class TimelineEvent(Base):
@@ -127,7 +129,35 @@ class SignInCount(Base):
     last_signin = Column(DateTime(timezone=True), nullable=False)
 
 
+class AnalyticsTotal(Base):
+    __tablename__ = "analytics_totals"
+    kind = Column(String, primary_key=True)
+    count = Column(BigInteger, nullable=False)
+
+
+def ensure_view_total(db):
+    if db.get(AnalyticsTotal, "view") is None:
+        existing = (
+            db.query(func.coalesce(func.sum(AnalyticsCount.count), 0))
+            .filter(AnalyticsCount.kind == "view")
+            .scalar()
+        )
+        insert = (
+            sqlite_insert if db.get_bind().dialect.name == "sqlite" else postgres_insert
+        )
+        db.execute(
+            insert(AnalyticsTotal)
+            .values(kind="view", count=existing)
+            .on_conflict_do_nothing(index_elements=["kind"])
+        )
+
+
 def record_metric(db, kind, identifier):
+    ensure_view_total(db)
+    if kind == "view":
+        db.query(AnalyticsTotal).filter_by(kind="view").update(
+            {AnalyticsTotal.count: AnalyticsTotal.count + 1}, synchronize_session=False
+        )
     today = datetime.now(timezone.utc).date()
     digest = hmac.new(
         SESSION_SECRET.encode(), f"{today}:{kind}:{identifier}".encode(), hashlib.sha256
@@ -173,6 +203,9 @@ with engine.connect() as conn:
         conn.execute(
             text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {column} VARCHAR;")
         )
+    conn.execute(
+        text("ALTER TABLE users ADD COLUMN IF NOT EXISTS first_signin_day DATE;")
+    )
     conn.commit()
 
 
@@ -283,7 +316,10 @@ async def auth_callback(
             existing_user.avatar_url = user_avatar
         else:
             new_user = User(
-                discord_id=discord_id, username=username, avatar_url=user_avatar
+                discord_id=discord_id,
+                username=username,
+                avatar_url=user_avatar,
+                first_signin_day=datetime.now(timezone.utc).date(),
             )
             db.add(new_user)
         db.flush()
@@ -309,10 +345,7 @@ def count_visit(
     db.commit()
 
 
-@app.get("/api/stats")
-async def site_stats(
-    request: Request, days: int = Query(30, ge=1, le=90), db: Session = Depends(get_db)
-):
+async def require_server_owner(request: Request):
     discord_id = request.session.get("discord_id")
     if not discord_id:
         raise HTTPException(
@@ -334,6 +367,27 @@ async def site_stats(
         ) from None
     if discord_id != owner_id:
         raise HTTPException(403, "Only the Discord server owner can view statistics.")
+
+
+@app.get("/api/stats/access")
+async def stats_access(request: Request):
+    try:
+        await require_server_owner(request)
+    except HTTPException:
+        is_owner = False
+    else:
+        is_owner = True
+    return JSONResponse({"is_owner": is_owner}, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/stats")
+async def site_stats(
+    request: Request, days: int = Query(30, ge=1, le=90), db: Session = Depends(get_db)
+):
+    await require_server_owner(request)
+    ensure_view_total(db)
+    db.commit()
+    all_time_views = db.get(AnalyticsTotal, "view").count
     today = datetime.now(timezone.utc).date()
     start = today - timedelta(days=days - 1)
     rows = (
@@ -358,11 +412,17 @@ async def site_stats(
             "accounts": 0,
         }
     for day, kind, total, unique in rows:
-        total_key, unique_key = (
-            ("views", "visitors") if kind == "view" else ("signins", "accounts")
-        )
-        daily[day][total_key] = total
-        daily[day][unique_key] = unique
+        if kind == "view":
+            daily[day]["views"] = total
+            daily[day]["visitors"] = unique
+        else:
+            daily[day]["signins"] = total
+    for day, count in (
+        db.query(User.first_signin_day, func.count())
+        .filter(User.first_signin_day >= start, User.first_signin_day <= today)
+        .group_by(User.first_signin_day)
+    ):
+        daily[day]["accounts"] = count
     accounts = (
         db.query(
             User.discord_id,
@@ -379,6 +439,8 @@ async def site_stats(
     return JSONResponse(
         {
             "daily": list(reversed(daily.values())),
+            "all_time_views": all_time_views,
+            "all_time_accounts": db.query(func.count(User.discord_id)).scalar(),
             "signed_in_users": [
                 {
                     "id": user_id,

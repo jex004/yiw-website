@@ -2,9 +2,29 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { afterNavigate } from '$app/navigation';
+	import { onMount } from 'svelte';
 	import { countPageView } from '$lib/analytics.js';
 	import '$lib/site.css';
 	let { children } = $props();
+	let isOwner = $state(false);
+	onMount(() => {
+		const controller = new AbortController();
+		const clearOwner = () => {
+			controller.abort();
+			isOwner = false;
+		};
+		window.addEventListener('yiw:logout', clearOwner);
+		void fetch('/api/stats/access', { signal: controller.signal, cache: 'no-store' })
+			.then(async (response) => {
+				const data = response.ok ? await response.json() : null;
+				if (!controller.signal.aborted) isOwner = data?.is_owner === true;
+			})
+			.catch(() => {});
+		return () => {
+			controller.abort();
+			window.removeEventListener('yiw:logout', clearOwner);
+		};
+	});
 	const links = [
 		{ href: resolve('/'), label: 'Overview', number: '01' },
 		{ href: resolve('/members'), label: 'Members', number: '02' },
@@ -45,15 +65,13 @@
 		<a href={resolve('/')}>YIW</a><span>Overview / Members / Timeline / Map / Gallery</span>
 	</footer>
 	<details class="privacy-note">
-		<summary>Privacy &amp; site statistics</summary>
+		<summary>Privacy</summary>
 		<p>
-			We count page views and successful Discord sign-ins. A random browser identifier, renewed
-			daily, helps estimate daily visitors. Statistics cover the last 90 days using daily counts and
-			protected visitor identifiers, without storing IP addresses or browsing paths. The server
-			owner can see Discord usernames, sign-in counts, and latest sign-in times. Sign-in records are
-			separate from page views. Discord usernames are also used for profiles and comments.
+			We count visits using a random daily browser ID. The server owner can see Discord usernames
+			and sign-in activity, separately from page views. Analytics do not store IP addresses or
+			browsing paths.
 		</p>
-		<a href={resolve('/stats')}>Owner statistics</a>
+		{#if isOwner}<a href={resolve('/stats')}>Owner statistics</a>{/if}
 	</details>
 </div>
 
@@ -76,7 +94,6 @@
 		cursor: pointer;
 	}
 	.privacy-note p {
-		max-width: 80ch;
 		line-height: 1.6;
 	}
 </style>

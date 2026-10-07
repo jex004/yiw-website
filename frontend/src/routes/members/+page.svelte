@@ -16,6 +16,7 @@
 			const response = await fetch('/api/logout', { method: 'POST', credentials: 'include' });
 			if (!response.ok) throw new Error('Could not log out. Please try again.');
 			currentUser = null;
+			window.dispatchEvent(new Event('yiw:logout'));
 			editing = false;
 		} catch {
 			logoutError = 'Could not log out. Please try again.';
