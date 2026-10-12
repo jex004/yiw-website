@@ -2,7 +2,7 @@
 	import { onMount, tick } from 'svelte';
 	import { dismissOnBackdrop } from '$lib/dismissOnBackdrop.js';
 	import MemberJoinChart from '$lib/MemberJoinChart.svelte';
-	import ProfileComments from '$lib/ProfileComments.svelte';
+	import Comments from '$lib/Comments.svelte';
 	/** @typedef {{id: string, username: string, avatar_url: string, date_joined: string, minecraft_username: string, preferred_name?: string, bio: string, detailed_bio?: string}} Member */
 	/** @type {{discord_id: string, username: string} | null} */
 	let currentUser = $state(null);
@@ -349,7 +349,7 @@
 						>{/if}
 				{/if}
 				{#if saveMessage}<p class="save-message" role="status">{saveMessage}</p>{/if}
-				{#key selected.id}<ProfileComments profileId={selected.id} {currentUser} />{/key}
+				{#key selected.id}<Comments targetId={selected.id} {currentUser} />{/key}
 			</div>
 		</div>
 	{/if}

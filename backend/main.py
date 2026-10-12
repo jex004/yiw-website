@@ -94,14 +94,9 @@ class TimelineEvent(Base):
     icon = Column(String)
 
 
-class ProfileComment(Base):
-    __tablename__ = "profile_comments"
-    __table_args__ = (
-        UniqueConstraint("profile_id", "author_id", "slot"),
-        CheckConstraint("slot IN (1, 2)"),
-    )
+class Comment(Base):
+    __abstract__ = True
     id = Column(String, primary_key=True, default=lambda: str(uuid4()))
-    profile_id = Column(String, nullable=False, index=True)
     author_id = Column(String, ForeignKey("users.discord_id"), nullable=False)
     slot = Column(Integer, nullable=False)
     body = Column(String(200), nullable=False)
@@ -111,6 +106,24 @@ class ProfileComment(Base):
         default=lambda: datetime.now(timezone.utc),
     )
     updated_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class ProfileComment(Comment):
+    __tablename__ = "profile_comments"
+    __table_args__ = (
+        UniqueConstraint("profile_id", "author_id", "slot"),
+        CheckConstraint("slot IN (1, 2)"),
+    )
+    profile_id = Column(String, nullable=False, index=True)
+
+
+class EventComment(Comment):
+    __tablename__ = "event_comments"
+    __table_args__ = (
+        UniqueConstraint("event_id", "author_id", "slot"),
+        CheckConstraint("slot IN (1, 2)"),
+    )
+    event_id = Column(String, nullable=False, index=True)
 
 
 class AnalyticsCount(Base):
@@ -223,11 +236,8 @@ with engine.connect() as conn:
 
 
 def get_db():
-    db = SessionLocal()
-    try:
+    with SessionLocal() as db:
         yield db
-    finally:
-        db.close()
 
 
 def require_same_origin(request: Request):
@@ -605,18 +615,40 @@ def serialize_comment(comment, author):
     }
 
 
-@app.get("/api/members/{profile_id}/comments")
-def get_comments(profile_id: str, db: Session = Depends(get_db)):
+def list_comments(db, model, target_filter):
     rows = (
-        db.query(ProfileComment, User)
-        .join(User, ProfileComment.author_id == User.discord_id)
-        .filter(ProfileComment.profile_id == profile_id)
-        .order_by(ProfileComment.created_at, ProfileComment.id)
+        db.query(model, User)
+        .join(User, model.author_id == User.discord_id)
+        .filter(target_filter)
+        .order_by(model.created_at, model.id)
         .all()
     )
     return {
         "comments": [serialize_comment(comment, author) for comment, author in rows]
     }
+
+
+@app.get("/api/members/{profile_id}/comments")
+def get_comments(profile_id: str, db: Session = Depends(get_db)):
+    return list_comments(db, ProfileComment, ProfileComment.profile_id == profile_id)
+
+
+@app.get("/api/events/{event_id}/comments")
+def get_event_comments(event_id: str, db: Session = Depends(get_db)):
+    return list_comments(db, EventComment, EventComment.event_id == event_id)
+
+
+@app.post("/api/events/{event_id}/comments", status_code=201)
+def create_event_comment(
+    event_id: str,
+    body: str = Body(..., embed=True, min_length=1, max_length=200),
+    author: User = Depends(comment_author),
+    db: Session = Depends(get_db),
+):
+    body = comment_text(body)
+    if not any(event["id"] == event_id for event in get_events(db)["events"]):
+        raise HTTPException(404, "Event not found.")
+    return save_comment(db, EventComment, {"event_id": event_id}, author, body)
 
 
 @app.post("/api/members/{profile_id}/comments", status_code=201)
@@ -632,20 +664,22 @@ async def create_comment(
         m["user"]["id"] == profile_id and not m["user"].get("bot") for m in members
     ):
         raise HTTPException(404, "Member profile not found.")
+    return save_comment(db, ProfileComment, {"profile_id": profile_id}, author, body)
+
+
+def save_comment(db, model, target, author, body):
     # Serialize this author's inserts; the slot constraint also enforces the limit.
     db.query(User).filter(User.discord_id == author.discord_id).with_for_update().one()
     used = {
         row.slot
-        for row in db.query(ProfileComment)
-        .filter_by(profile_id=profile_id, author_id=author.discord_id)
+        for row in db.query(model)
+        .filter_by(**target, author_id=author.discord_id)
         .all()
     }
     slot = next((slot for slot in (1, 2) if slot not in used), None)
     if slot is None:
-        raise HTTPException(409, "You can leave up to two comments on each profile.")
-    comment = ProfileComment(
-        profile_id=profile_id, author_id=author.discord_id, slot=slot, body=body
-    )
+        raise HTTPException(409, "You can leave up to two comments here.")
+    comment = model(**target, author_id=author.discord_id, slot=slot, body=body)
     db.add(comment)
     try:
         db.commit()
@@ -659,7 +693,7 @@ async def create_comment(
 
 
 def owned_comment(comment_id, author, db):
-    comment = db.get(ProfileComment, comment_id)
+    comment = db.get(ProfileComment, comment_id) or db.get(EventComment, comment_id)
     if comment is None:
         raise HTTPException(404, "Comment not found.")
     if comment.author_id != author.discord_id:

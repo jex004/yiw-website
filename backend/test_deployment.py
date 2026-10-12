@@ -252,6 +252,12 @@ class DeploymentTests(unittest.TestCase):
         self.assertEqual(result.status_code, 400)
 
     def test_comments_permissions_limits_and_persistence(self):
+        self.check_comments("members")
+
+    def test_event_comments_permissions_limits_and_persistence(self):
+        self.check_comments("events")
+
+    def check_comments(self, kind):
         app = self.app_module
         engine = create_engine(
             "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
@@ -272,7 +278,7 @@ class DeploymentTests(unittest.TestCase):
                 yield db
 
         app.app.dependency_overrides[app.get_db] = database
-        url = "/api/members/member/comments"
+        url = f"/api/{kind}/member/comments"
         headers = {"Origin": "https://example.test"}
 
         def sign_in(user):
@@ -307,6 +313,13 @@ class DeploymentTests(unittest.TestCase):
                         {"user": {"id": "second"}},
                     ]
                 ),
+            ), patch.object(
+                app,
+                "read_content",
+                return_value=[
+                    {"id": "member", "date": "2024-01-01", "title": "First"},
+                    {"id": "second", "date": "2024-01-02", "title": "Second"},
+                ],
             ):
                 for body in ("", "   ", "x" * 201):
                     self.assertEqual(
@@ -333,7 +346,7 @@ class DeploymentTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     self.client.post(
-                        "/api/members/second/comments",
+                        f"/api/{kind}/second/comments",
                         headers=headers,
                         json={"body": "different profile"},
                     ).status_code,
@@ -341,7 +354,7 @@ class DeploymentTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     self.client.post(
-                        "/api/members/missing/comments",
+                        f"/api/{kind}/missing/comments",
                         headers=headers,
                         json={"body": "hello"},
                     ).status_code,

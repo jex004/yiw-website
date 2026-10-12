@@ -1,9 +1,12 @@
 <script>
 	import TimelineTrolley from '$lib/TimelineTrolley.svelte';
+	import Comments from '$lib/Comments.svelte';
 	import { onMount, tick } from 'svelte';
 	import { dismissOnBackdrop } from '$lib/dismissOnBackdrop.js';
 	import { day, dateFormat, timestamp } from '$lib/dates.js';
 	import { layoutMarkers, timelinePadding } from '$lib/timelineLayout.js';
+	/** @type {{discord_id: string, username: string} | null} */
+	let currentUser = $state(null);
 	/** @typedef {{id: string, date: string, title: string, summary: string, description: string, images: {url: string, alt: string}[]}} ServerEvent */
 	/** @type {ServerEvent[]} */
 	let events = $state([]);
@@ -313,7 +316,15 @@
 		}
 	}
 	onMount(() => {
+		const controller = new AbortController();
+		void fetch('/api/me', { credentials: 'include', signal: controller.signal })
+			.then((response) => (response.ok ? response.json() : null))
+			.then((data) => {
+				if (!controller.signal.aborted) currentUser = data?.authenticated ? data.user : null;
+			})
+			.catch(() => {});
 		void load();
+		return () => controller.abort();
 	});
 </script>
 
@@ -518,6 +529,9 @@
 			<button disabled={flipping} onclick={toggleDetails}>
 				{expanded ? 'Back to summary' : 'View more'}
 			</button>
+		{/if}
+		{#if expanded && events.some((event) => event.id === selected?.id)}
+			{#key selected.id}<Comments kind="events" targetId={selected.id} {currentUser} />{/key}
 		{/if}
 		<div class="event-pagination">
 			<button

@@ -1,8 +1,8 @@
 <script>
 	import { onMount } from 'svelte';
 	/** @typedef {{id: string, author_id: string, username: string, body: string, created_at: string, updated_at: string | null}} Comment */
-	/** @type {{profileId: string, currentUser: {discord_id: string, username: string} | null}} */
-	let { profileId, currentUser } = $props();
+	/** @type {{targetId: string, kind?: 'members' | 'events', currentUser: {discord_id: string, username: string} | null}} */
+	let { targetId, kind = 'members', currentUser } = $props();
 	/** @type {Comment[]} */
 	let comments = $state([]);
 	let loading = $state(true);
@@ -16,7 +16,7 @@
 	let ownCount = $derived(
 		comments.filter((comment) => comment.author_id === currentUser?.discord_id).length
 	);
-	let endpoint = $derived(`/api/members/${encodeURIComponent(profileId)}/comments`);
+	let endpoint = $derived(`/api/${kind}/${encodeURIComponent(targetId)}/comments`);
 
 	/** @param {string} url @param {RequestInit} [options] */
 	async function request(url, options) {
@@ -80,7 +80,7 @@
 	});
 </script>
 
-<section class="comments" aria-label="Profile comments">
+<section class="comments" aria-label={kind === 'events' ? 'Event comments' : 'Profile comments'}>
 	<h3>Comments</h3>
 	{#if loading}<p role="status">Loading comments...</p>
 	{:else if loadError}<p role="alert">{loadError}</p>
@@ -143,9 +143,7 @@
 				<a href="/login" data-sveltekit-reload>Sign in with Discord</a> to leave a comment. You don't
 				need to be in the server.
 			</p>
-		{:else if ownCount >= 2}<p>
-				You've left two comments on this profile. You can edit or delete them above.
-			</p>
+		{:else if ownCount >= 2}<p>You've left two comments here. You can edit or delete them above.</p>
 		{:else}
 			<form
 				onsubmit={(event) => {
@@ -153,9 +151,9 @@
 					void save('POST');
 				}}
 			>
-				<label for="new-profile-comment">Leave a comment</label>
+				<label for="new-comment">Leave a comment</label>
 				<textarea
-					id="new-profile-comment"
+					id="new-comment"
 					bind:value={draft}
 					maxlength="200"
 					rows="3"
