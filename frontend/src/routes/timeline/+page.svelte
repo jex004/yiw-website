@@ -481,7 +481,7 @@
 						<div class="event-copy">
 							<time datetime={event.date}>{dateLabel(event.date)}</time>
 							<h3><button onclick={() => openEvent(event, true, true)}>{event.title}</button></h3>
-							{#if event.description}<p>{event.description}</p>{/if}
+							{#if event.summary}<p>{event.summary}</p>{/if}
 							<button class="read-more" onclick={() => openEvent(event, true, true)}
 								>View event &rarr;</button
 							>

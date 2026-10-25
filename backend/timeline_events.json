@@ -1,10 +1,31 @@
 [
     {
+        "id": "March 2026 Gameday",
+        "date": "2026-03-28",
+        "title": "March 2026 Gameday",
+        "summary": "A fun, spontaneous gameday where my hosting skills were really put to the test 😅",
+        "description": "We introduced a whole new level of production for this gameday and also a whole new level of hosting for me to tackle. \n\nVery proud of our team of three that worked on building and programming a semi-automatic Werewolf game and Game Show set to host various game show like events from now on! \n\nGames Played: Geoguessr, Among Us, Reverse Categories, Werewelf, Bootleg Cards Against Humanity.",
+        "images": [
+            { "url": "/events/2026/gameshow-luc-pov.png", "alt": "gameshow first person pov" },
+            { "url": "/events/2026/huge-call-march-2026.png", "alt": "huge call incoming" }
+        ]
+    },
+    {
+        "id": "All Aboard the Gameday Express",
+        "date": "2026-01-31",
+        "title": "All Aboard the Gameday Express",
+        "summary": "One and all, welcom upon the Gameday Express!",
+        "description": "The Last Voyage of the Harpy Express x Costume Party!",
+        "images": [
+            { "url": "/events/2026/train-roleplaying.png", "alt": "costumed up" }
+        ]
+    },
+    {
         "id": "Holiday Gameday 2025",
         "date": "2025-12-19",
         "title": "Holiday Gameday 2025",
         "summary": "Happy Holidays from YIW!",
-        "description": "Celebrating the holidays with a special gameday! Also congrats to @Frennie for hitting 100k MM wins!! \nGames Played: Holiday Hide and Seek, Gartic Phone, The Last Voyage of the Harpy Express!",
+        "description": "Celebrating the holidays with a special gameday! Also congrats to @Frennie for hitting 100k MM wins!! \n\nGames Played: Holiday Hide and Seek, Gartic Phone, The Last Voyage of the Harpy Express!",
         "images": [
             { "url": "/events/2025/2025-holiday-greetings.png", "alt": "2025 holiday greetings card" },
             { "url": "/events/2025/2025-holiday-ss.png", "alt": "original 2025 holiday ss" },
@@ -31,7 +52,7 @@
         "date": "2025-09-13",
         "title": "5 Year Anniversary Gameday",
         "summary": "HAPPY 5 YEAR ANNIVERSARY! 🎉",
-        "description": "A special gameday held to celebrate the server's 5 year anniversary! Fun Fact: YIW was founded on August 29th, 2020 by Gancelot and HopeNot. \nGames Played: Scattergories, Skribbl.io, Gartic Phone, MC Bingo, MM Spin the Wheel!",
+        "description": "A special gameday held to celebrate the server's 5 year anniversary! Fun Fact: YIW was founded on August 29th, 2020 by Gancelot and HopeNot. \n\nGames Played: Scattergories, Skribbl.io, Gartic Phone, MC Bingo, MM Spin the Wheel!",
         "images": [
             { "url": "/events/2025/indi-just-do-it.png", "alt": "just do it guysss" },
             { "url": "/events/2025/24karat.png", "alt": "24karat" },
@@ -43,7 +64,7 @@
         "date": "2025-08-08",
         "title": "2025 Summer Gameday",
         "summary": "The first uttering of the term \"gameday\".",
-        "description": "A historical moment as the first ever gameday was held. This would be the first of many. And the beginning of HopeNot's hosting nightmares. \nGames Played: Gartic Phone, MM Hide and Seek, Skribbl.io, MC Bingo, and Among Us!",
+        "description": "A historical moment as the first ever gameday was held. This would be the first of many. And the beginning of HopeNot's hosting nightmares. \n\nGames Played: Gartic Phone, MM Hide and Seek, Skribbl.io, MC Bingo, and Among Us!",
         "images": [
             { "url": "/events/2025/moments-before-disaster.png", "alt": "moments before disaster strikes" },
             { "url": "/events/2025/disaster-strikes.png", "alt": "subway strikes" },
@@ -135,7 +156,7 @@
         "date": "2021-12-16",
         "title": "The Birth of MM Hide and Seek",
         "summary": "The humble origins of our beloved hide and seek game.",
-        "description": "Hide and seek but with the rules adjusted to fit the Murder Mystery gamemode's life cycle. \nWe kept hiding in the same place and played roulette to see who would get killed first lolol.",
+        "description": "Hide and seek but with the rules adjusted to fit the Murder Mystery gamemode's life cycle. \n\nWe kept hiding in the same place and played roulette to see who would get killed first lolol.",
         "images": [
             { "url": "/events/2021/clueless.png", "alt": "hopnut the clueless" },
             { "url": "/events/2021/the-puddle.png", "alt": "the puddle." },
@@ -158,7 +179,7 @@
         "date": "2021-04-30",
         "title": "Identity Swap",
         "summary": "You is me and me is you.",
-        "description": "Swapping skins AND identities. \nWe had to \"become each other\" as in adopting each other's playstyles, personalities, and way of talking/acting.",
+        "description": "Swapping skins AND identities. \n\nWe had to \"become each other\" as in adopting each other's playstyles, personalities, and way of talking/acting.",
         "images": [
             { "url": "/events/2021/identity-swap-v1.png", "alt": "us with swapped identities" }
         ]
