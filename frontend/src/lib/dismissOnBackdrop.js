@@ -1,5 +1,19 @@
+import { lockPageScroll } from './lockPageScroll.js';
+
 /** @param {HTMLDialogElement} node @param {() => void} close */
 export function dismissOnBackdrop(node, close) {
+	/** @type {(() => void) | undefined} */
+	let unlock;
+	function syncScrollLock() {
+		if (node.open) unlock ??= lockPageScroll();
+		else {
+			unlock?.();
+			unlock = undefined;
+		}
+	}
+	const observer = new MutationObserver(syncScrollLock);
+	observer.observe(node, { attributes: true, attributeFilter: ['open'] });
+	syncScrollLock();
 	let startedOutside = false;
 	/** @param {MouseEvent} event */
 	function isOutside(event) {
@@ -25,6 +39,8 @@ export function dismissOnBackdrop(node, close) {
 	node.addEventListener('click', click);
 	return {
 		destroy() {
+			observer.disconnect();
+			unlock?.();
 			node.removeEventListener('pointerdown', pointerDown);
 			node.removeEventListener('click', click);
 		}

@@ -1,5 +1,6 @@
 <script>
 	import VideoLibrary from '$lib/VideoLibrary.svelte';
+	import SmpGallery from '$lib/SmpGallery.svelte';
 	import VideoCarousel from '$lib/VideoCarousel.svelte';
 	import videoData from '$lib/videos.js';
 	/** @type {{open: () => void} | undefined} */
@@ -23,6 +24,7 @@
 	</div>
 	{#if featured.length}<VideoCarousel videos={featured} />
 	{:else}<p>No videos added yet.</p>{/if}
+	<SmpGallery />
 	<section class="photos-placeholder" aria-label="Photos coming soon">
 		<h2>Photos &amp; screenshots</h2>
 		<p>More from the server, coming soon.</p>
@@ -41,6 +43,7 @@
 	}
 	.section-heading h2 {
 		margin: 0;
+		font-size: clamp(2rem, 4vw, 2.4rem);
 	}
 	.text-button {
 		background: transparent;

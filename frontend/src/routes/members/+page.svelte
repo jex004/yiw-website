@@ -530,6 +530,7 @@
 		transform: rotateY(180deg);
 		max-height: 85dvh;
 		overflow: auto;
+		overscroll-behavior: contain;
 	}
 	.profile-top {
 		display: flex;

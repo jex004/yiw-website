@@ -85,7 +85,7 @@
 
 <style>
 	.privacy-note {
-		padding: 12px 32px;
+		padding: 12px 32px 12px 48px;
 		border-top: 1px solid var(--line);
 		color: var(--muted);
 		font-size: 0.65rem;

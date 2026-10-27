@@ -27,6 +27,7 @@
 	let width = $state(800);
 	let scrollLeft = $state(0);
 	let scrolling = $state(false);
+	let scrollingLeft = $state(false);
 	let dragging = $state(false);
 	/** @type {number | null} */
 	let hoveredMarker = $state(null);
@@ -95,6 +96,7 @@
 		let idleTimer;
 		function onScroll() {
 			if (scrollLeft === node.scrollLeft) return;
+			scrollingLeft = node.scrollLeft < scrollLeft;
 			scrollLeft = node.scrollLeft;
 			scrolling = true;
 			clearTimeout(idleTimer);
@@ -433,7 +435,7 @@
 							{/each}
 						</div>
 					</div>
-					<TimelineTrolley moving={scrolling} progress={scrollProgress} />
+					<TimelineTrolley moving={scrolling} reversed={scrollingLeft} progress={scrollProgress} />
 				</div>
 				<p class="timeline-hint">
 					Drag or swipe to move. Use + / &minus; to zoom. Hover or focus a dot to see its label;
