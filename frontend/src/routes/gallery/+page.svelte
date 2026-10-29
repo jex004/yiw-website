@@ -5,7 +5,12 @@
 	import videoData from '$lib/videos.js';
 	/** @type {{open: () => void} | undefined} */
 	let library = $state();
-	const featured = [...videoData].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+	const firstVideoId = 'BBC1rA9AlBE';
+	const featured = [...videoData].sort(
+		(a, b) =>
+			Number(b.id === firstVideoId) - Number(a.id === firstVideoId) ||
+			b.publishedAt.localeCompare(a.publishedAt)
+	);
 </script>
 
 <main>
@@ -43,7 +48,7 @@
 	}
 	.section-heading h2 {
 		margin: 0;
-		font-size: clamp(2rem, 4vw, 2.4rem);
+		font-size: clamp(1.8rem, 3.6vw, 2.1rem);
 	}
 	.text-button {
 		background: transparent;

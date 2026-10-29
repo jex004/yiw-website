@@ -49,7 +49,10 @@
 
 <section class="smp" aria-labelledby="smp-heading">
 	<div class="intro">
-		<h2 id="smp-heading">YIW SMP</h2>
+		<div>
+			<h2 id="smp-heading">YIW SMP</h2>
+			<p class="subtitle">Our shared world.</p>
+		</div>
 		<button class="text-button" aria-haspopup="dialog" onclick={() => open()}>See all &rarr;</button
 		>
 	</div>
@@ -81,7 +84,7 @@
 		</button>
 	{/if}
 	<div class="section-foot">
-		<span>Our shared world.</span><span>January 2025 - Present</span>
+		<span>January 2025 - Present</span>
 	</div>
 </section>
 
@@ -184,7 +187,13 @@
 		font-size: 1.8rem;
 	}
 	.intro h2 {
-		font-size: clamp(2rem, 4vw, 2.4rem);
+		font-size: clamp(1.8rem, 3.6vw, 2.1rem);
+	}
+	.subtitle {
+		margin: 4px 0 0;
+		font-size: 0.7rem;
+		line-height: 1.4;
+		color: var(--muted);
 	}
 	.highlights {
 		display: grid;
@@ -294,6 +303,7 @@
 		transform: scaleX(-1);
 	}
 	.section-foot {
+		justify-content: flex-end;
 		margin-top: 12px;
 		color: var(--muted);
 		font-size: 0.6rem;
