@@ -143,12 +143,22 @@
 		color: var(--green);
 		border: 1px solid var(--green);
 		border-radius: 50%;
+		opacity: 0;
+		pointer-events: none;
+		transition: opacity 160ms ease;
 	}
 	.video-slide:not(.front) .play {
 		visibility: hidden;
 	}
-	.front:hover .play {
+	.front:hover .play,
+	.front:focus-visible .play {
+		opacity: 1;
 		background: var(--green-light);
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.play {
+			transition: none;
+		}
 	}
 	.carousel-controls {
 		display: flex;

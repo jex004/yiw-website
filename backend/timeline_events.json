@@ -1,5 +1,19 @@
 [
     {
+        "id": "2026 Summer Gameday",
+        "date": "2026-03-28",
+        "title": "2026 Summer Gameday",
+        "summary": "A fun, spontaneous gameday where my hosting skills were really put to the test 😅",
+        "description": "We introduced a whole new level of production for this gameday and also a whole new level of hosting for me to tackle. \n\nVery proud of our team of three that worked on building and programming a semi-automatic Werewolf game and Game Show set to host various game show like events from now on! \n\nGames Played: Geoguessr, Among Us, Reverse Categories, Werewelf, Bootleg Cards Against Humanity.",
+        "images": [
+            { "url": "/events/2026/church-pic.png", "alt": "preach" },
+            { "url": "/events/2026/guillotine-group-pic.png", "alt": "posing with death" },
+            { "url": "/events/2026/well-pic.png", "alt": "bobbing" },
+            { "url": "/events/2026/shack-pic.png", "alt": "it's gettin' hot in here" },
+            { "url": "/events/2026/full-call-spread.png", "alt": "humongous call moment" }
+        ]
+    },
+    {
         "id": "March 2026 Gameday",
         "date": "2026-03-28",
         "title": "March 2026 Gameday",

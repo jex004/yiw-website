@@ -5,12 +5,15 @@
 	import videoData from '$lib/videos.js';
 	/** @type {{open: () => void} | undefined} */
 	let library = $state();
-	const firstVideoId = 'BBC1rA9AlBE';
-	const featured = [...videoData].sort(
-		(a, b) =>
-			Number(b.id === firstVideoId) - Number(a.id === firstVideoId) ||
-			b.publishedAt.localeCompare(a.publishedAt)
-	);
+	const firstVideoId = '4dU53h1pIW8';
+	const featured = videoData
+		.filter((video) => video.featured !== false)
+		.sort(
+			(a, b) =>
+				Number(b.id === firstVideoId) - Number(a.id === firstVideoId) ||
+				b.publishedAt.localeCompare(a.publishedAt)
+		)
+		.slice(0, 5);
 </script>
 
 <main>
