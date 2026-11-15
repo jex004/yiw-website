@@ -1,10 +1,39 @@
 [
     {
+        "id": "Happy Birthday To Me!",
+        "date": "2026-11-01",
+        "title": "Happy Birthday To Me!",
+        "summary": "Skoggy takeover! A surprise from my friends to me 🥰💕",
+        "description": "First, I had NO idea this was happening. I was fully convinced I was waking up at 8am after Halloween for a Halloween build competition. Little did I know... \n\nA funny note: I somehow ended up hosting my own birthday event in the end despite not planning it. I suppose it's just natural at this point. \n\nLive, love, laugh, Skoggy. I have the bestest friends 🥹",
+        "images": [
+            { "url": "/events/2026/skoggy-portrait.png", "alt": "so primp and proper" },
+            { "url": "/events/2026/happy-birthday-sign.png", "alt": "revamped olympics sign" },
+            { "url": "/events/2026/slightly-diff-angle.png", "alt": "new angle unlocked" },
+            { "url": "/events/2026/where-am-i-looking.png", "alt": "butt facing the camera" },
+            { "url": "/events/2026/skoggy-brawl.png", "alt": "skog fights" },
+            { "url": "/events/2026/birthday-creeper-attack.png", "alt": "everyone's favourite" },
+            { "url": "/events/2026/party-hat-skog.jpg", "alt": "party hat skog" }
+        ]
+    },
+    {
+        "id": "YIW Olympics 2026",
+        "date": "2026-09-13",
+        "title": "YIW Olympics 2026",
+        "summary": "So... Who's the best Minecrafter? Another day of being at each other's throats 😞",
+        "description": "Special thanks to @runeAnarki, @viperish, and @MayIAsk for all their help and dedication to working on this project while I was busy with my internship! \n\nYou guys are crazy and also the best <3",
+        "images": [
+            { "url": "/events/2026/2026-podium-moment.png", "alt": "wow podium w shaders" },
+            { "url": "/events/2026/2026-event-order.png", "alt": "what're we playin todayy" },
+            { "url": "/events/2026/2026-final-scores.png", "alt": "ldb moment" },
+            { "url": "/events/2026/2026-roles.png", "alt": "so official" }
+        ]
+    },
+    {
         "id": "2026 Summer Gameday",
-        "date": "2026-03-28",
+        "date": "2026-08-09",
         "title": "2026 Summer Gameday",
-        "summary": "A fun, spontaneous gameday where my hosting skills were really put to the test 😅",
-        "description": "We introduced a whole new level of production for this gameday and also a whole new level of hosting for me to tackle. \n\nVery proud of our team of three that worked on building and programming a semi-automatic Werewolf game and Game Show set to host various game show like events from now on! \n\nGames Played: Geoguessr, Among Us, Reverse Categories, Werewelf, Bootleg Cards Against Humanity.",
+        "summary": "Something doesn't feel quite right about this town...",
+        "description": "Very thankful for the team of builders, programmers, and testers that came together to work upon our previous version of Werewolf, making the game almost fully automatic! \n\nGames Played: Gartic Phone, MC Bingo, Werewolf",
         "images": [
             { "url": "/events/2026/church-pic.png", "alt": "preach" },
             { "url": "/events/2026/guillotine-group-pic.png", "alt": "posing with death" },

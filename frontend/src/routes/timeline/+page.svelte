@@ -735,7 +735,10 @@
 		text-shadow:
 			0 0 3px #d5edf7,
 			0 0 6px #d5edf7;
-		outline: 1px solid var(--green);
+	}
+	.event-marker:hover .marker-label strong,
+	.event-marker:focus-visible .marker-label strong {
+		font-weight: bold;
 	}
 	.event-marker:hover .pin,
 	.event-marker:focus-visible .pin {
